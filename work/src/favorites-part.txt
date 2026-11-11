@@ -1,0 +1,108 @@
+  const FAVORITES = 'sniffies-comfort-filter.favorites.v1';
+  let favorites = [];
+  try { favorites = core.sanitizeFavorites(JSON.parse(localStorage.getItem(FAVORITES))); } catch {}
+  function writeFavorites(next, status) {
+    const clean = core.sanitizeFavorites(next);
+    try { localStorage.setItem(FAVORITES,JSON.stringify(clean)); }
+    catch { status.textContent = 'Could not save. Browser storage may be full or unavailable.'; return false; }
+    favorites = clean;
+    renderFavorites(); schedule();
+    return true;
+  }
+  function saveFriend(id, name, status, url) {
+    const prior = favorites.find(friend => friend.id === id) || {};
+    const clean = core.sanitizeFavorites([{...prior,id,name,url:url || prior.url,createdAt:prior.createdAt || new Date().toISOString(),updatedAt:new Date().toISOString()}])[0];
+    if (!clean) { status.textContent = 'Enter a name for this friend.'; return false; }
+    if (!favorites.some(friend => friend.id === id) && favorites.length >= 500) { status.textContent = 'Your list is full. Remove a friend before adding another.'; return false; }
+    return writeFavorites([...favorites.filter(friend => friend.id !== id),clean],status);
+  }
+  function renderFavorites() {
+    if (!shadow) return;
+    const list = shadow.getElementById('favorites-list');
+    const summary = shadow.getElementById('favorites-summary');
+    if (!list) return;
+    summary.textContent = `⭐ Favorites · ${favorites.length}`;
+    list.replaceChildren();
+    if (!favorites.length) { const hint = document.createElement('p'); hint.textContent = 'Tap ☆ in a profile’s corner to save a friend.'; list.append(hint); return; }
+    for (const friend of [...favorites].sort((a,b) => a.name.localeCompare(b.name))) {
+      const row = document.createElement('div'); row.className = 'favorite-row';
+      const name = document.createElement('input'); name.type = 'text'; name.maxLength = 80; name.value = friend.name; name.setAttribute('aria-label','Name for '+friend.name);
+      const actions = document.createElement('div'); actions.className = 'actions';
+      const open = document.createElement(friend.url ? 'a' : 'span'); open.className = 'secondary'; open.textContent = friend.url ? 'Open' : 'Open unavailable';
+      if (friend.url) { open.href = friend.url; open.setAttribute('aria-label','Open '+friend.name); }
+      else { open.setAttribute('aria-disabled','true'); open.title = 'Open this profile and save it again to repair its link.'; }
+      const save = document.createElement('button'); save.type = 'button'; save.className = 'secondary'; save.textContent = 'Save name';
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'secondary'; remove.textContent = 'Remove'; remove.setAttribute('aria-label','Remove '+friend.name);
+      const status = shadow.getElementById('favorites-status');
+      save.addEventListener('click',() => { if (saveFriend(friend.id,name.value,status)) status.textContent = 'Name saved.'; });
+      name.addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); save.click(); } });
+      remove.addEventListener('click',() => { if (writeFavorites(favorites.filter(item => item.id !== friend.id),status)) status.textContent = 'Friend removed.'; });
+      actions.append(open,save,remove); row.append(name,actions); list.append(row);
+    }
+  }
+  function repairFavoriteLinks(verifiedIds) {
+    let changed = false;
+    const next = favorites.map(friend => {
+      if (friend.url || !verifiedIds.has(friend.id)) return friend;
+      changed = true; return {...friend,url:`/profile/${friend.id}`,updatedAt:new Date().toISOString()};
+    });
+    if (changed) writeFavorites(next,shadow?.getElementById('favorites-status') || {textContent:''});
+  }
+  let openFavoriteEditor;
+  const profileStars = new Map();
+  function placeProfileStars() {
+    const view = window.visualViewport;
+    const left = view?.offsetLeft || 0, top = view?.offsetTop || 0;
+    const right = left + (view?.width || innerWidth), bottom = top + (view?.height || innerHeight);
+    for (const [profile,entry] of profileStars) {
+      const r = profile.getBoundingClientRect();
+      const x = Math.min(r.right,right)-52, y = Math.max(r.top,top)+8;
+      entry.host.hidden = !profile.isConnected || r.width < 52 || r.height < 52 || x < Math.max(left,r.left) || y+44 > Math.min(bottom,r.bottom) || getComputedStyle(profile).visibility === 'hidden';
+      entry.host.style.left = x+'px'; entry.host.style.top = y+'px';
+    }
+  }
+  function syncFavoriteButtons(profileRecords, ownId, ownProfileRoute) {
+    const wanted = new Set(profileRecords.filter(item => core.validId(item.id) && item.id !== ownId && !ownProfileRoute).map(item => item.profile));
+    for (const [profile,entry] of profileStars) if (!wanted.has(profile)) { entry.host.remove(); profileStars.delete(profile); }
+    for (const profile of wanted) {
+      const record = profileRecords.find(item => item.profile === profile), id = record.id;
+      let entry = profileStars.get(profile);
+      if (!entry) {
+        const starHost = document.createElement('div'); starHost.className = 'scf-profile-star-v1';
+        Object.assign(starHost.style,{position:'fixed',width:'44px',height:'44px',zIndex:'2147483645'});
+        const root = starHost.attachShadow({mode:'open'});
+        root.innerHTML = `<style>button{box-sizing:border-box;width:42px;height:42px;padding:0;border:1px solid #ffb547;border-radius:14px;background:#0b1023 url("${LENS_ICONS.star}") center/27px no-repeat;font-size:0;cursor:pointer;box-shadow:0 4px 14px #0b102388;touch-action:manipulation}button:focus-visible{outline:3px solid #ffb547;outline-offset:2px}</style><button type="button" id="favorite-star" aria-label="Save profile" aria-pressed="false">☆</button>`;
+        entry = {host:starHost,button:root.getElementById('favorite-star'),id}; profileStars.set(profile,entry);
+        // A sibling overlay keeps even capture-phase profile/photo handlers out of the event path.
+        for (const type of ['pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','dblclick']) starHost.addEventListener(type,event => event.stopPropagation());
+        entry.button.addEventListener('click',event => { event.preventDefault(); event.stopPropagation(); openFavoriteEditor(entry.id,entry.button,entry.url); });
+        document.documentElement.append(starHost);
+      }
+      entry.id = id; entry.url = record.url;
+      const saved = favorites.some(friend => friend.id === id), symbol = saved ? '★' : '☆';
+      if (entry.button.textContent !== symbol) entry.button.textContent = symbol;
+      entry.button.setAttribute('aria-pressed',String(saved));
+      entry.button.setAttribute('aria-label',saved ? 'Edit saved friend' : 'Save friend');
+    }
+    placeProfileStars();
+  }
+  function syncFavoriteMarkers(mapMarkers, ownId) {
+    const saved = new Set(favorites.map(friend => friend.id));
+    for (const marker of mapMarkers) {
+      const isFavorite = saved.has(marker.id) && marker.id !== ownId && !marker.classList.contains('current-visitor');
+      let badge = marker.querySelector(':scope > .scf-favorite-badge');
+      if (!isFavorite) { marker.removeAttribute('data-scf-favorite'); badge?.remove(); continue; }
+      if (!marker.hasAttribute('data-scf-favorite')) marker.setAttribute('data-scf-favorite','');
+      if (!badge) { badge = document.createElement('span'); badge.className = 'scf-favorite-badge'; badge.textContent = '★'; badge.setAttribute('role','img'); badge.setAttribute('aria-label','Saved friend'); badge.title = 'Saved friend'; marker.append(badge); }
+    }
+  }
+  let starLayoutFrame = 0;
+  const scheduleStarLayout = () => { if (!starLayoutFrame) starLayoutFrame = requestAnimationFrame(() => { starLayoutFrame = 0; placeProfileStars(); }); };
+  window.addEventListener('scroll',scheduleStarLayout,{capture:true,passive:true});
+  window.addEventListener('resize',scheduleStarLayout);
+  window.visualViewport?.addEventListener('resize',scheduleStarLayout);
+  window.visualViewport?.addEventListener('scroll',scheduleStarLayout);
+  window.addEventListener('storage',event => {
+    if (event.key !== FAVORITES && event.key !== null) return;
+    try { favorites = core.sanitizeFavorites(JSON.parse(event.key === null ? null : event.newValue)); renderFavorites(); schedule(); } catch {}
+  });

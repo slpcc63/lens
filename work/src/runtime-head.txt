@@ -1,0 +1,43 @@
+(() => {
+  'use strict';
+  if (window.top !== window.self || document.getElementById('scf-controls-v1')) return;
+  if (window.__sniffiesComfortFilterV1) return;
+  window.__sniffiesComfortFilterV1 = true;
+  const core = createComfortCore();
+  const PREF = 'sniffies-comfort-filter.enabled.v1';
+  const SETTINGS = 'sniffies-comfort-filter.settings.v2';
+  const MAX_BYTES = 4 * 1024 * 1024, MAX_RECORDS = 10000, MAX_AGE_MS = 2 * 60 * 60 * 1000;
+  const markers = '.marker-container.user[id], [data-testid="markerUserContainer"][id], app-cruisers-carousel app-cruiser-card [data-testid="cruiserCard"][id]';
+  const profileRoots = 'app-profile [id^="profile-"]';
+  const diagnostics = {fetch:0, xhr:0, socket:0, tooLarge:0, mapLists:0};
+  const networkIds = new Set();
+  const known = new Map(); // Only selected stats and presence times, in this tab's memory.
+  let enabled = true, config = core.defaults();
+  let host, shadow, style, timer, observer, activityTimer;
+  let panelOpen = false, networkSeen = false, displayedUnits = 'imperial';
+  try { enabled = localStorage.getItem(PREF) !== 'false'; config = core.sanitizeConfig(JSON.parse(localStorage.getItem(SETTINGS))); } catch {}
+  function note(id, patch) {
+    if (!core.validId(id) || !patch || typeof patch !== 'object') return;
+    const entry = known.get(id) || {values:{},seen:{}};
+    for (const [key,value] of Object.entries(patch)) {
+      // A delayed snapshot must not undo a more recent connection/disconnection event.
+      if (['connectUpdateTime','disconnectTime'].includes(key) && typeof entry.values[key] === 'number' && (value === null || value < entry.values[key])) continue;
+      entry.values[key] = value; entry.seen[key] = Date.now();
+    }
+    known.delete(id); known.set(id,entry);
+    while (known.size > MAX_RECORDS) known.delete(known.keys().next().value);
+  }
+  function receive(payload) {
+    try {
+      const facts = core.recordsFrom(payload);
+      if (!facts.size) return;
+      networkSeen = true;
+      for (const [id,patch] of facts) { note(id,patch); networkIds.add(id); }
+      while (networkIds.size > MAX_RECORDS) networkIds.delete(networkIds.values().next().value);
+      schedule();
+    } catch {}
+  }
+  function invalidatePresence() {
+    for (const entry of known.values()) entry.values.presenceKnown = false;
+    schedule();
+  }

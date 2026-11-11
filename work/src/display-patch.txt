@@ -1,0 +1,21 @@
+  function displayPatch(fields) {
+    const patch = {};
+    const set = (field, n) => { if (Number.isFinite(n) && n >= ranges[field][0] && n <= ranges[field][1]) patch[field] = n; };
+    const age = normalize(fields.age).match(/^(\d+)\s*\+?$/);
+    if (age) set('age',Number(age[1]));
+    const height = normalize(fields.height).replace(/\s*\+$/,'');
+    const cm = height.match(/^(\d+(?:\.\d+)?)\s*cm$/);
+    if (cm) set('height',Number(cm[1]));
+    else if (height && /['′]|ft/.test(height)) { try { set('height',toCanonical('height',height,'imperial')); } catch {} }
+    const weight = normalize(fields.weight).match(/^(\d+(?:\.\d+)?)\s*(kg|lbs?)\s*\+?$/);
+    if (weight) set('weight',weight[2] === 'kg' ? Number(weight[1]) : Math.round(Number(weight[1])*0.45359237));
+    const endowment = normalize(fields.endowment).match(/^(\d+(?:\.\d+)?)\s*(cm|in|"|″)(?:\s*\+)?(?:\s+(?:un)?cut)?$/);
+    if (endowment) set('endowment',endowment[2] === 'cm' ? Number(endowment[1]) : Math.round(Number(endowment[1])*2.54));
+    const body = normalize(fields.body);
+    const bodyValue = body === 'fit' || body === 'athletic' ? 'athletic' : bodies.find(([id,label]) => normalize(label) === body)?.[0];
+    if (bodyValue) patch.body = bodyValue;
+    const position = normalize(fields.position);
+    const positionValue = position === 'dom top (breeder)' ? 'top-dom' : positions.find(([id,label]) => normalize(label) === position)?.[0];
+    if (positionValue) patch.position = positionValue;
+    return patch;
+  }

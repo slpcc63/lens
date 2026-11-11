@@ -1,0 +1,101 @@
+  function receiveText(text) {
+    if (typeof text === 'string' && text.length > MAX_BYTES) { diagnostics.tooLarge++; schedule(); return; }
+    const payload = core.parsePayload(text);
+    if (payload) receive(payload);
+  }
+  function relevantURL(url) {
+    if (!core.isSniffiesURL(url, location.href)) return false;
+    try {
+      return !/\/(?:auth(?:entication)?|account|password|chat|messages?|conversations?|payments?|billing|verification)(?:\/|$)/i.test(new URL(url, location.href).pathname);
+    } catch { return false; }
+  }
+  async function readResponse(response) {
+    if (!/json/i.test(response.headers.get('content-type') || '')) return;
+    diagnostics.fetch++;
+    if (Number(response.headers.get('content-length') || 0) > MAX_BYTES) { diagnostics.tooLarge++; schedule(); return; }
+    const copy = response.clone();
+    if (!copy.body?.getReader) return;
+    const reader = copy.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '', size = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > MAX_BYTES) { diagnostics.tooLarge++; schedule(); void reader.cancel().catch(() => {}); return; }
+        text += decoder.decode(value, { stream: true });
+      }
+      receiveText(text + decoder.decode());
+    } finally { reader.releaseLock(); }
+  }
+  // Safari userscripts can start after the app has retained a transport method.
+  // Also observe the map list when the app decodes it, regardless of that method.
+  // Only the two map-list envelopes verified in Sniffies' public app code qualify.
+  // Use the already-decoded list, avoiding a second copy of a large startup response.
+  try {
+    const originalParse = JSON.parse;
+    JSON.parse = function (...args) {
+      const value = Reflect.apply(originalParse, this, args);
+      try {
+        const list = value?.nearbyVisitors?.visitors ?? value?.result?.nearbyUsers;
+        if (Array.isArray(list)) { diagnostics.mapLists++; receive(list); }
+      } catch {}
+      return value;
+    };
+  } catch {}
+  // Observe data the page already receives. No extra profile requests or response rewriting.
+  try {
+    const originalFetch = window.fetch;
+    if (typeof originalFetch === 'function') {
+      window.fetch = function (...args) {
+        return Reflect.apply(originalFetch, this, args).then(response => {
+          if (relevantURL(response.url)) void readResponse(response).catch(() => {});
+          return response;
+        });
+      };
+    }
+  } catch {}
+  try {
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const attached = new WeakSet();
+    XMLHttpRequest.prototype.open = function (...args) {
+      const result = Reflect.apply(originalOpen, this, args);
+      if (!attached.has(this)) {
+        attached.add(this);
+        this.addEventListener('load', () => {
+          try {
+            if (!relevantURL(this.responseURL)) return;
+            diagnostics.xhr++; schedule();
+            if (this.responseType === 'json') receive(this.response);
+            else if (!this.responseType || this.responseType === 'text') receiveText(this.responseText);
+          } catch {}
+        });
+      }
+      return result;
+    };
+  } catch {}
+  try {
+    const OriginalSocket = window.WebSocket;
+    if (OriginalSocket) {
+      window.WebSocket = new Proxy(OriginalSocket, {
+        construct(target, args, newTarget) {
+          const socket = Reflect.construct(target, args, newTarget);
+          if (relevantURL(String(args[0]))) {
+            socket.addEventListener('close', invalidatePresence);
+            socket.addEventListener('error', invalidatePresence);
+            socket.addEventListener('message', event => {
+              diagnostics.socket++; schedule();
+              try {
+                if (typeof event.data === 'string') receiveText(event.data);
+                else if (event.data instanceof Blob && event.data.size <= MAX_BYTES) void event.data.text().then(receiveText).catch(() => {});
+                else if (event.data instanceof ArrayBuffer && event.data.byteLength <= MAX_BYTES) receiveText(new TextDecoder().decode(event.data));
+              } catch {}
+            });
+          }
+          return socket;
+        }
+      });
+    }
+  } catch {}
+

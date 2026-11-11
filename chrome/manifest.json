@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Lens \u2014 Sniffies Comfort Filter",
+  "short_name": "Lens",
+  "version": "1.5.0",
+  "minimum_chrome_version": "111",
+  "description": "Privately filter Sniffies profiles, save favorites, and highlight preference matches.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sniffies.com/*",
+        "https://www.sniffies.com/*"
+      ],
+      "js": [
+        "filter.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_title": "Lens for Sniffies",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

@@ -1,0 +1,18 @@
+:root{color-scheme:dark;--navy:#0b1023;--surface:#131a35;--surface-2:#1b2445;--text:#f7f8fc;--muted:#aeb9d6;--blue:#568bff;--cyan:#25d9ff;--violet:#9474ff;--amber:#ffb547;--line:#ffffff1f}
+*{box-sizing:border-box}
+body{margin:0;width:320px;padding:18px;background:radial-gradient(circle at 88% 0,#3f2f8a55,transparent 40%),linear-gradient(155deg,var(--navy),#101733 75%);color:var(--text);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center}
+.mark{width:42px;height:42px;filter:drop-shadow(0 0 10px #568bff66)}
+.family{display:block;color:#91a4d2;font-size:9px;font-weight:800;letter-spacing:1.5px}
+h1{margin:0;font-size:23px;line-height:1.05;letter-spacing:-.4px}
+.version{align-self:start;border:1px solid var(--line);border-radius:999px;padding:3px 7px;color:var(--muted);font-size:10px}
+.lead{margin:15px 0 12px;color:#d9e0f2;font-size:15px}
+.summary{display:grid;gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--line)}
+.summary div{display:grid;grid-template-columns:10px 52px 1fr;gap:7px;align-items:center;padding:8px 10px;background:#111833d9}
+.summary strong{font-size:12px}.summary small{color:var(--muted);font-size:11px}
+.dot{width:7px;height:7px;border-radius:50%}.dot.filter{background:var(--amber);box-shadow:0 0 8px #ffb54799}.dot.top{background:var(--cyan);box-shadow:0 0 8px #25d9ff99}.dot.bottom{background:var(--violet);box-shadow:0 0 8px #9474ff99}
+.instruction{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;margin:12px 0;color:#cbd4eb;font-size:11px}.instruction img{width:28px;height:28px}
+a{display:flex;justify-content:center;gap:7px;margin-top:12px;padding:10px 14px;border-radius:11px;background:linear-gradient(120deg,var(--blue),var(--violet));color:white;text-decoration:none;font-weight:750;box-shadow:0 8px 24px #334edc35}
+a:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+footer{display:flex;justify-content:space-between;margin-top:12px;color:#8f9abb;font-size:10px}
+@media(prefers-color-scheme:light){:root{color-scheme:light;--navy:#f7f8fc;--surface:#eef1fb;--surface-2:#fff;--text:#0b1023;--muted:#53617a;--line:#0b10231a}body{background:radial-gradient(circle at 88% 0,#9474ff25,transparent 42%),#f7f8fc}.lead{color:#18223b}.summary div{background:#fff}.instruction{color:#53617a}}

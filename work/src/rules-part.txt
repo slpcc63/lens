@@ -1,0 +1,94 @@
+  const RULES = 'sniffies-comfort-filter.rules.v1';
+  const PREFERENCE_RANGES = 'sniffies-comfort-filter.preference-ranges.v1';
+  const groupNames = {filters:'Filters',top:'Top Preferences',bottom:'Bottom Preferences'};
+  const comfortRuleAttributes = core.ruleAttributes.filter(([id]) => id.startsWith('comfort:'));
+  let activeRuleGroup = 'filters', ruleGroups = core.sanitizeRuleGroups(null);
+  const emptyRanges = () => Object.fromEntries(Object.keys(core.ranges).map(key => [key,[null,null]]));
+  const sanitizePreferenceRanges = value => {
+    const result = {top:emptyRanges(),bottom:emptyRanges()};
+    for (const group of ['top','bottom']) {
+      const sanitized = core.sanitizeConfig(value?.[group]);
+      for (const key of Object.keys(core.ranges)) result[group][key] = sanitized[key];
+    }
+    return result;
+  };
+  let preferenceRanges = sanitizePreferenceRanges(null);
+  function withoutRuleFields(value) {
+    return {...value,comfort:{},bodies:[],positions:[],activity:'any'};
+  }
+  try {
+    const savedRules = JSON.parse(localStorage.getItem(RULES));
+    if (savedRules) ruleGroups = core.sanitizeRuleGroups(savedRules);
+    else {
+      ruleGroups.filters = core.rulesFromConfig(config);
+      localStorage.setItem(RULES,JSON.stringify(ruleGroups));
+    }
+    config = withoutRuleFields(config);
+    localStorage.setItem(SETTINGS,JSON.stringify(config));
+  } catch { config = withoutRuleFields(config); }
+  try { preferenceRanges = sanitizePreferenceRanges(JSON.parse(localStorage.getItem(PREFERENCE_RANGES))); } catch {}
+  function savePreferenceRanges(next = preferenceRanges) {
+    preferenceRanges = sanitizePreferenceRanges(next);
+    try { localStorage.setItem(PREFERENCE_RANGES,JSON.stringify(preferenceRanges)); } catch {}
+    schedule();
+  }
+  function activeFormConfig() {
+    return activeRuleGroup === 'filters' ? config : {...core.defaults(),...preferenceRanges[activeRuleGroup],units:config.units,missing:config.missing};
+  }
+  function ruleLabel(rule) {
+    const label = core.ruleAttributes.find(([id]) => id === rule.attribute)?.[1] || rule.attribute;
+    return `${rule.condition === 'has' ? 'Has' : 'Doesn’t have'} · ${label}`;
+  }
+  function saveRuleGroups(next = ruleGroups) {
+    ruleGroups = core.sanitizeRuleGroups(next);
+    try { localStorage.setItem(RULES,JSON.stringify(ruleGroups)); } catch {}
+    renderRuleBuilder(); schedule();
+  }
+  function renderRuleBuilder() {
+    if (!shadow) return;
+    for (const button of shadow.querySelectorAll('[data-rule-group]')) {
+      const selected = button.dataset.ruleGroup === activeRuleGroup;
+      button.setAttribute('aria-selected',String(selected)); button.tabIndex = selected ? 0 : -1;
+    }
+    const list = shadow.getElementById('rule-list');
+    if (!list) return;
+    list.replaceChildren();
+    const rules = ruleGroups[activeRuleGroup], comfortRules = rules.filter(rule => rule.attribute.startsWith('comfort:'));
+    for (const input of shadow.querySelectorAll('[data-category-rule]')) {
+      const [domain,id] = input.dataset.categoryRule.split(':');
+      input.checked = rules.some(rule => rule.condition === 'has' && rule.attribute === `${domain}:${id}`);
+    }
+    const activity = rules.find(rule => rule.condition === 'has' && rule.attribute.startsWith('activity:'))?.attribute.split(':')[1] || 'any';
+    if (shadow.getElementById('activity')) shadow.getElementById('activity').value = activity;
+    if (!comfortRules.length) {
+      const empty = document.createElement('p'); empty.className = 'hint';
+      empty.textContent = 'No comfort-level rules in this group.';
+      list.append(empty);
+    }
+    comfortRules.forEach(rule => {
+      const index = rules.indexOf(rule);
+      const row = document.createElement('div'); row.className = 'rule-row';
+      const text = document.createElement('span'); text.textContent = ruleLabel(rule);
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'rule-remove'; remove.textContent = '×'; remove.setAttribute('aria-label','Remove '+ruleLabel(rule));
+      remove.addEventListener('click',() => { const next = structuredClone(ruleGroups); next[activeRuleGroup].splice(index,1); saveRuleGroups(next); });
+      row.append(text,remove); list.append(row);
+    });
+  }
+  function addSelectedRule() {
+    const condition = shadow.getElementById('rule-condition').value;
+    const attribute = shadow.getElementById('rule-attribute').value;
+    const duplicate = ruleGroups[activeRuleGroup].some(rule => rule.condition === condition && rule.attribute === attribute);
+    const status = shadow.getElementById('rule-status');
+    if (duplicate) { status.textContent = 'That rule is already in this group.'; return; }
+    const next = structuredClone(ruleGroups); next[activeRuleGroup].push({condition,attribute});
+    status.textContent = 'Rule added.'; saveRuleGroups(next);
+  }
+  function replaceCategoryRules(domain,values) {
+    const next = structuredClone(ruleGroups);
+    next[activeRuleGroup] = next[activeRuleGroup].filter(rule => !rule.attribute.startsWith(domain+':'));
+    for (const value of values) next[activeRuleGroup].push({condition:'has',attribute:`${domain}:${value}`});
+    saveRuleGroups(next);
+  }
+  function ruleActivityEnabled() {
+    return Object.values(ruleGroups).some(rules => rules.some(rule => rule.attribute.startsWith('activity:')));
+  }

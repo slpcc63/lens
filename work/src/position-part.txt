@@ -1,0 +1,102 @@
+  function enableMovingButton() {
+    const key = 'sniffies-comfort-filter.button-position.v1';
+    const chip = shadow.getElementById('chip'), panel = shadow.getElementById('panel');
+    const insets = shadow.getElementById('safe-area');
+    let position = null, drag = null, suppressClick = false;
+    try {
+      const saved = JSON.parse(localStorage.getItem(key));
+      if (saved && [saved.x,saved.y].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1)) position = saved;
+    } catch {}
+    const clamp = (n,min,max) => Math.max(min,Math.min(Math.max(min,max),n));
+    function bounds() {
+      const view = window.visualViewport;
+      const safe = getComputedStyle(insets);
+      const left = (view?.offsetLeft || 0) + 12 + parseFloat(safe.paddingLeft || 0);
+      const top = (view?.offsetTop || 0) + 12 + parseFloat(safe.paddingTop || 0);
+      const right = (view?.offsetLeft || 0) + (view?.width || window.innerWidth) - 12 - parseFloat(safe.paddingRight || 0);
+      const bottom = (view?.offsetTop || 0) + (view?.height || window.innerHeight) - 12 - parseFloat(safe.paddingBottom || 0);
+      return {left,top,right,bottom};
+    }
+    function place(left,top,b = bounds()) {
+      chip.style.maxWidth = Math.max(44,b.right-b.left)+'px';
+      const r = chip.getBoundingClientRect();
+      const x = clamp(left,b.left,b.right-r.width), y = clamp(top,b.top,b.bottom-r.height);
+      Object.assign(host.style,{left:x+'px',top:y+'px',right:'auto',bottom:'auto'});
+      return {x:(x-b.left)/Math.max(1,b.right-b.left-r.width),y:(y-b.top)/Math.max(1,b.bottom-b.top-r.height)};
+    }
+    function placePanel(b = bounds()) {
+      if (panel.hidden) return;
+      panel.style.width = Math.min(360,b.right-b.left)+'px';
+      const r = chip.getBoundingClientRect();
+      const aboveSpace = Math.max(0,r.top-b.top-10), belowSpace = Math.max(0,b.bottom-r.bottom-10);
+      const above = aboveSpace > belowSpace;
+      panel.style.maxHeight = Math.max(0,above ? aboveSpace : belowSpace)+'px';
+      const p = panel.getBoundingClientRect();
+      panel.style.left = clamp(r.right-p.width,b.left,b.right-p.width)+'px';
+      panel.style.top = (above ? r.top-p.height-10 : r.bottom+10)+'px';
+    }
+    function layout() {
+      if (!host.isConnected || drag) return;
+      const b = bounds();
+      chip.style.maxWidth = Math.max(44,b.right-b.left)+'px';
+      const r = chip.getBoundingClientRect();
+      if (position) place(b.left+position.x*Math.max(0,b.right-b.left-r.width),b.top+position.y*Math.max(0,b.bottom-b.top-r.height),b);
+      else place(b.right-r.width,b.bottom-r.height-(window.innerHeight < 500 ? 0 : 66),b);
+      placePanel(b);
+    }
+    function save() { try { localStorage.setItem(key,JSON.stringify(position)); } catch {} }
+    chip.addEventListener('pointerdown',event => {
+      if (event.isPrimary === false || event.button !== 0) return;
+      suppressClick = false;
+      const r = chip.getBoundingClientRect();
+      drag = {id:event.pointerId,startX:event.clientX,startY:event.clientY,left:r.left,top:r.top,moved:false,previous:position};
+      try { chip.setPointerCapture(event.pointerId); } catch {}
+      event.stopPropagation();
+    });
+    chip.addEventListener('pointermove',event => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const dx = event.clientX-drag.startX, dy = event.clientY-drag.startY;
+      if (!drag.moved && Math.hypot(dx,dy) < 7) return;
+      drag.moved = true; suppressClick = true;
+      chip.classList.add('dragging');
+      position = place(drag.left+dx,drag.top+dy);
+      placePanel();
+      event.preventDefault(); event.stopPropagation();
+    });
+    function finish(event,cancelled) {
+      if (!drag || event.pointerId !== drag.id) return;
+      const finished = drag; drag = null;
+      chip.classList.remove('dragging');
+      if (cancelled) position = finished.previous;
+      else if (finished.moved) save();
+      try { if (chip.hasPointerCapture(event.pointerId)) chip.releasePointerCapture(event.pointerId); } catch {}
+      layout(); event.stopPropagation();
+    }
+    chip.addEventListener('pointerup',event => finish(event,false));
+    chip.addEventListener('pointercancel',event => finish(event,true));
+    chip.addEventListener('lostpointercapture',event => finish(event,true));
+    // A drag must not also open/close the settings. A fresh tap or keyboard click still works.
+    chip.addEventListener('click',event => {
+      if (suppressClick && event.detail !== 0) { event.preventDefault(); event.stopImmediatePropagation(); }
+      suppressClick = false;
+    },true);
+    chip.addEventListener('keydown',event => {
+      if (!event.altKey || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+      event.preventDefault(); event.stopPropagation();
+      const r = chip.getBoundingClientRect();
+      position = place(r.left+(event.key === 'ArrowLeft' ? -20 : event.key === 'ArrowRight' ? 20 : 0),r.top+(event.key === 'ArrowUp' ? -20 : event.key === 'ArrowDown' ? 20 : 0));
+      save(); placePanel();
+    });
+    shadow.getElementById('reset-position').addEventListener('click',() => {
+      position = null;
+      try { localStorage.removeItem(key); } catch {}
+      layout();
+    });
+    window.addEventListener('resize',layout);
+    window.visualViewport?.addEventListener('resize',layout);
+    window.visualViewport?.addEventListener('scroll',layout);
+    // Button labels change with the hidden count; re-clamp after their width changes.
+    if (window.ResizeObserver) new ResizeObserver(layout).observe(chip);
+    layout();
+    return layout;
+  }
