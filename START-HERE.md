@@ -96,7 +96,7 @@ Version 1.1.2 lets you drag the floating **Filters** button with a finger or mou
 
 The button stays within the visible screen as its size or orientation changes. The settings panel opens above or below it, with scrolling when space is limited. In settings, tap **Reset button position** to return it to the original lower-right location. This leaves your profile filters unchanged. With the button focused, **Alt + arrow keys** also move it.
 
-To install this update on iPhone, replace the old **sniffies-comfort-filter.user.js** file in your Userscripts folder, keep only one copy, open the Userscripts menu in Safari once, and reload Sniffies. See the update instructions below for Chrome.
+For current Safari release installation and migration, see [Safari distribution instructions](docs/DISTRIBUTION.md). See the update instructions below for Chrome.
 
 ## Map filtering update
 
@@ -130,20 +130,13 @@ With imperial units, enter height as `5'9"` or total inches such as `69`. Weight
 
 **Chrome:** Replace the contents of your previously installed extension folder with the contents of this package's **chrome** folder. Open `chrome://extensions`, find **Lens — Sniffies Comfort Filter**, click its reload button, and then reload Sniffies.
 
-**Safari / iPhone:** Replace the old **sniffies-comfort-filter.user.js** file in your Userscripts folder with the new file of the same name. Keep one copy. Open the Userscripts menu in Safari once so it recognizes the replacement, then reload Sniffies.
+**Safari / iPhone:** Follow [Safari installation, one-time migration, manual updates and rollback](docs/DISTRIBUTION.md). Version 1.5.1 prepares repository distribution; release publication and actual-device verification remain pending. Future approved updates use Userscripts **Check Updates → Update**, without repeated file copying.
 
 Your previous on/off setting and saved filters are retained in the same browser. The old No PNP setting is migrated as described above.
 
 ## First-time installation: iPhone Safari
 
-1. Install the free [Userscripts app by Justin Wasack](https://apps.apple.com/us/app/userscripts/id1463298887).
-2. Open Userscripts and note its scripts folder, or select a folder you can find in Files.
-3. Transfer **sniffies-comfort-filter.user.js** to that folder using AirDrop, iCloud Drive, or Files. Keep the `.user.js` filename.
-4. Enable **Userscripts** in **Settings → Apps → Safari → Extensions**. On older iOS versions, Safari is directly under Settings.
-5. Open Sniffies in a regular Safari tab. Open Safari's page menu, then **Extensions → Userscripts**. Allow access to **sniffies.com** and enable **Lens for Sniffies**.
-6. Reload Sniffies and look for the **Filters** button.
-
-The iPhone version runs through Userscripts, not the desktop Chrome package. This is a script for that existing Safari extension, not a standalone App Store app. See [Userscripts' installation guide](https://github.com/quoid/userscripts#usage).
+See [the current Safari installation guide](docs/DISTRIBUTION.md). Use the approved generated `dist/sniffies.user.js` release, not the development source or Chrome package.
 
 ## First-time installation: desktop Chrome
 
@@ -156,7 +149,7 @@ See [Google's installation instructions](https://developer.chrome.com/docs/exten
 
 ## First-time installation: Mac Safari
 
-Install [Userscripts](https://apps.apple.com/us/app/userscripts/id1463298887), enable it in Safari's Extensions settings, and put **sniffies-comfort-filter.user.js** in its scripts folder. Open the Userscripts menu on Sniffies once, grant access to the site, enable the script, and reload.
+See [the current Safari installation guide](docs/DISTRIBUTION.md), including the native remote-install and manual update workflow.
 
 ## Coverage and privacy
 
