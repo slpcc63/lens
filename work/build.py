@@ -3,6 +3,7 @@ import base64
 import json
 import shutil
 import re
+import zipfile
 root=Path(__file__).resolve().parent.parent
 out=root; chrome=out/'chrome'
 version=(root/'VERSION').read_text().strip()
@@ -52,3 +53,12 @@ popup=re.sub(r'(<span class="version">)[^<]+(</span>)',lambda m:m[1]+version+m[2
 for size in [32,128]: shutil.copyfile(root/f'assets/doxle-icons/{size}/filter.png',chrome/f'icons/icon-{size}.png')
 shutil.copyfile(root/'assets/doxle-icons/32/filter.png',chrome/'icons/icon-16.png')
 shutil.copyfile(root/'assets/doxle-icons/64/filter.png',chrome/'icons/icon-48.png')
+# Explicit allowlist excludes local files and produces a reproducible preview ZIP.
+brave_files=['manifest.json','filter.js','popup.html','popup.css']+[
+    f'icons/icon-{size}.png' for size in [16,32,48,128]]
+with zipfile.ZipFile(dist/f'lens-brave-{version}.zip','w',compression=zipfile.ZIP_STORED) as archive:
+    for name in sorted(brave_files):
+        info=zipfile.ZipInfo('lens-brave/'+name,date_time=(2020,1,1,0,0,0))
+        info.create_system=3
+        info.external_attr=0o100644 << 16
+        archive.writestr(info,(chrome/name).read_bytes())

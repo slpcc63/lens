@@ -1,3 +1,4 @@
 .DS_Store
 *.zip
+!dist/lens-brave-*.zip
 __pycache__/

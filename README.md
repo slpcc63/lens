@@ -15,6 +15,8 @@ Load `chrome/` as an unpacked Chrome extension. The canonical Safari release art
 
 [Safari installation and manual updates](docs/DISTRIBUTION.md) · [Release procedure](docs/RELEASING.md)
 
+Brave desktop: build-generated **`dist/lens-brave-1.5.1.zip`**. See [safe update instructions](docs/BRAVE.md). The ZIP is a review preview; updating an unpacked extension still requires replacing its files and clicking Reload.
+
 Version 1.5.1 prepares repository distribution. No approved GitHub release exists yet. The configured latest-release URL is pending publication and Safari validation. Userscripts iOS 1.8.6 does not perform automatic update checks.
 
 The v1.5.0 redesign uses the SLPCC63 family palette, compact layered surfaces, and supplied Doxle icon assets throughout the popup and in-page interface.
