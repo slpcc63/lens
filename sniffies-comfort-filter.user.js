@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         Lens for Sniffies
 // @namespace    local.sniffies-comfort-filter
-// @version      1.5.0
+// @version      1.5.1
+// @updateURL    https://github.com/slpcc63/lens/releases/latest/download/sniffies.user.js
+// @downloadURL  https://github.com/slpcc63/lens/releases/latest/download/sniffies.user.js
 // @description  Privately filter profiles, save favorites, and highlight Top or Bottom preference matches.
 // @match        https://sniffies.com/*
 // @match        https://www.sniffies.com/*
@@ -11,7 +13,7 @@
 // @noframes
 // ==/UserScript==
 
-// Lens 1.5.0 — private local filtering and preference highlighting for Sniffies
+// Lens 1.5.1 — private local filtering and preference highlighting for Sniffies
 (()=>{
 'use strict';
 function createComfortCore() {
@@ -1063,7 +1065,7 @@ const LENS_ICONS={"filter":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAA
           <details class="advanced"><summary>Ranges · age, height, weight, endowment</summary><p class="hint">Ranges apply to the selected tab. Each configured range counts as one preference when scoring Top or Bottom matches.</p>
             ${range('age','Age · years')}${range('height','Height · ft/in or total inches')}${range('weight','Weight · lb')}${range('endowment','Endowment · inches')}
           </details>
-        </div><div id="settings-view" hidden><div class="settings-row"><label class="field-label" for="units">Units</label><select id="units"><option value="imperial">Feet / inches · pounds</option><option value="metric">Centimeters · kilograms</option></select></div><div class="settings-row"><label class="field-label" for="missing">When details are missing</label><select id="missing"><option value="show">Keep profiles visible</option><option value="hide">Hide until required details arrive</option></select></div><button id="reset-position" type="button" class="secondary">Reset Lens position</button><details class="diagnostics"><summary>Technical status · v1.5.0</summary><pre id="diagnostics"></pre></details></div>
+        </div><div id="settings-view" hidden><div class="settings-row"><label class="field-label" for="units">Units</label><select id="units"><option value="imperial">Feet / inches · pounds</option><option value="metric">Centimeters · kilograms</option></select></div><div class="settings-row"><label class="field-label" for="missing">When details are missing</label><select id="missing"><option value="show">Keep profiles visible</option><option value="hide">Hide until required details arrive</option></select></div><button id="reset-position" type="button" class="secondary">Reset Lens position</button><details class="diagnostics"><summary>Technical status · v1.5.1</summary><pre id="diagnostics"></pre></details></div>
         <div id="help-view" class="help" hidden><h3>What Lens blocks</h3><p>Filters hide profiles that do not match. The status card separates rule mismatches from profiles hidden while required details are still missing.</p><h3>Top and Bottom</h3><p>Electric blue marks Top matches, violet marks Bottom matches, and a dual ring marks profiles that qualify for both.</p><h3>Privacy</h3><p>Lens uses information already delivered to this browser. It makes no additional profile requests and uploads nothing.</p><h3>Moving Lens</h3><p>Drag the floating Lens button, or focus it and use Alt plus an arrow key.</p></div></div>
         <div id="footer"><p id="error" role="alert" hidden></p><div class="actions"><button id="reset" type="button">Reset</button><button id="apply" type="button">Apply filters</button></div></div>
       </section><button id="chip" title="Drag to move; tap to open Lens" type="button" aria-label="Open Lens" aria-expanded="false" aria-controls="panel"><img src="${LENS_ICONS.filter}" alt=""><span id="chip-count" hidden>0</span></button>`;
@@ -1160,7 +1162,7 @@ const LENS_ICONS={"filter":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAA
     text('status',enabled ? `Lens active · ${hidden} hidden` : 'Lens paused · profiles restored');
     text('blocking-summary',enabled && hidden ? `${mismatchHidden} rule mismatch${mismatchHidden === 1 ? '' : 'es'} · ${missingHidden} awaiting details` : enabled ? 'No profiles are currently blocked.' : 'Filtering and highlights are temporarily off.');
     text('coverage',checked+unknown ? `${checked} fully checked · ${unknown} still missing details` : networkSeen ? 'Waiting for profiles on the map.' : 'Waiting for profile information. Refresh Sniffies once after installation.');
-    text('diagnostics',`Version: 1.5.0
+    text('diagnostics',`Version: 1.5.1
 Map pins found: ${pinCount}
 Photo cards found: ${cardCount}
 Profiles matched to loaded data: ${loadedCount}
