@@ -42,3 +42,11 @@ Canonical repository is verified as `https://github.com/slpcc63/lens`. `.compass
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Report exact build/commit, simulator and real-device results, TestFlight processing/link status, site compatibility blockers, metadata/signing gaps and the owner's stage-one decision here. Discuss stage two only after that review.
+
+## Build 2 local additions
+
+Site settings edit the same stable site record rather than remove/readd it. The share extension accepts HTTPS URLs into an App Group inbox, then Lens imports them on foreground. Run `python3 ios/generate-project.py` after source/target changes. Physical distribution requires the existing team to provision `group.com.slpcc63.lens.browser` for both `com.slpcc63.lens.browser` and `com.slpcc63.lens.browser.share`; simulator success is not distribution-signing proof.
+
+The account-name setting is a reminder only, not a verified Apple Passwords entry selector. The previous password interface is removed; dormant vault code/data are retained to avoid deleting credentials. Normal website sign-in/session behavior stays in WebKit.
+
+Account sync is an undeployed integration candidate; see `server/hosted-saas/README.md`. No sync URL is enabled in the shipped project configuration yet. Do not describe this build as already syncing across devices.

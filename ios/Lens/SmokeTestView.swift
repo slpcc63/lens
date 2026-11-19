@@ -30,6 +30,27 @@ struct SmokeTestView: View {
             var duplicateRejected = false
             do { try store.add(name: "Duplicate", address: "example.com") } catch { duplicateRejected = true }
             try require(duplicateRejected, "Duplicate site rejected")
+            let stableID = store.sites[0].id
+            try store.update(id: stableID, name: "Updated", address: "alias.example.com/path?token=private", preferredUsername: "preferred")
+            try require(store.sites[0].id == stableID && store.sites[0].url.absoluteString == "https://alias.example.com/path", "Editing URL preserves stable identity and strips tokens")
+            try require(store.sites[0].preferredUsername == "preferred", "Preferred account reminder persists")
+            try store.add(name: "Second", address: "second.example.com")
+            var collisionRejected = false
+            do { try store.update(id: stableID, name: "Collision", address: "second.example.com", preferredUsername: "") } catch { collisionRejected = true }
+            try require(collisionRejected && store.sites[0].id == stableID, "Edit rejects URL collision without reordering sites")
+            let oldFormat = "[{\"id\":\"\(UUID().uuidString)\",\"name\":\"Old site\",\"url\":\"https://legacy.example.com\"}]"
+            let migrated = try JSONDecoder().decode([SavedSite].self, from: Data(oldFormat.utf8))
+            try require(migrated.first?.preferredUsername == nil, "Existing build-one saved sites decode without losing data")
+            let previousGeneration = store.generation
+            try store.replaceWithBackup(with: migrated)
+            try require(store.generation != previousGeneration && store.sites == migrated, "Account download applies validated settings and updates generation")
+            var invalidSnapshotRejected = false
+            do { try store.replace(with: [SavedSite(name: "Unsafe", url: URL(string: "http://unsafe.example")!)]) } catch { invalidSnapshotRejected = true }
+            try require(invalidSnapshotRejected && store.sites == migrated, "Invalid account snapshot cannot overwrite local sites")
+            let shareHost = "share-" + UUID().uuidString.lowercased() + ".invalid"
+            try SharedSiteInbox.save(name: "Shared", url: URL(string: "https://" + shareHost + "/path?token=private#secret")!)
+            store.importSharedSites()
+            try require(store.sites.contains { $0.url.absoluteString == "https://" + shareHost + "/path" }, "Share inbox imports a sanitized HTTPS shortcut")
             let origin = "https://smoke-\(UUID().uuidString).invalid"
             defer { try? LoginVault.delete(origin: origin) }
             try LoginVault.save(SiteLogin(username: "synthetic", password: "test-only"), origin: origin)

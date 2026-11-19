@@ -19,3 +19,17 @@ Next: complete the Lens | Doxle App Store Connect record for this exact register
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Return exact source/build/archive identity, test evidence, App Store Connect app ID, upload/processing status, owner testing result and remaining blockers here. Never include credentials or private profile information.
+
+## November 19 superseding local candidate — build 2
+
+Source implementation: edit a site's name/URL without changing UUID/order; optional account-name reminder (not verified Apple Passwords selection); gear entry and home context-menu Edit site; explicit purple Sites return with native pop gesture hidden; removed separate password area; Add to Lens share extension with HTTPS review and token stripping; per-request App Group inbox with import on foreground. Existing websites/sessions and Keychain records are preserved.
+
+Shared Doxle identity inspected in Cadence/Sentinel and canonical hosted-saas. Account sync client and server integration candidate prepared in `server/hosted-saas`; live endpoint is absent (HTTP 404). Client remains disabled until server acceptance/configuration. Manual snapshot upload/download, expected-revision conflicts, stable account ownership, backup before local replacement, isolated first-party account WebKit store, origin-checked bridge. No passwords/cookies/history/profiles sync. This does not establish live/two-device sync or Google sign-in compatibility.
+
+Verification: signed simulator app and embedded share extension build passed; 21 local synthetic checks passed (including old-format migration/edit identity/collision/share inbox). Native UI edited/saved the Example site; swipe remained in website and explicit Sites returned home. Safari share sheet showed Lens, opened Add to Lens with example.org, and saving imported the shortcut into Lens. Dark UI checked in the walkthrough. Final additional origin guard and visible Sites text compiled; those minor final changes were not separately visually reinspected. Expanded text/light-theme/new-device testing remain beta QA.
+
+Server: 5 unit tests passed; actual temporary loopback PostgreSQL migration/concurrency/owner isolation and HTTP handlers with synthetic auth passed; TypeScript route check against existing shared auth source passed. No production migration, shared account changes, server deployment, TestFlight upload, push or public release performed in this session. Apple App Group/share bundle distribution provisioning remains to be verified for build 2. Source changes are local until committed/pushed separately.
+
+Branding: preserves Lens identity and Doxle edition 0.1 draft semantic foundations. Purple Sites return adapts family violet for readable text. Uses native system symbols for small navigation/settings controls as allowed by the style guide; full-catalog existing image resources remain. No naming/identity replacement.
+
+Next: central auth/database integration review, deploy/test controlled server candidate, verify real sign-in and two-device sync, provision share App Group, archive and deliver build 2 for owner QA. Stage-two wizard/filtering remains deferred. Required .compass identity/production metadata remain the previously documented migration gap; no identity ID or hosted enrollment invented.
