@@ -1,0 +1,21 @@
+# iPhone stage-one checkpoint — November 18, 2026
+
+Implementation: saved HTTPS site shortcuts, embedded WebKit browsing with back/forward/reload and visible origin, persistent website data, explicit per-origin save/delete in Keychain, authenticated conservative same-origin form fill. No stage-two detector, filters or wizard. Existing extensions unchanged.
+
+Validation: signed simulator build succeeded. All 14 synthetic smoke checks passed on the corrected build (URL safety/token stripping, saved-site persistence/duplicate rejection, Keychain create/read/update/delete and port isolation, WebKit rendering, rejected wrong-origin fill and unchanged fields). Native UI walkthrough saved Example, opened its HTTPS page, confirmed saved shortcut persistence across relaunch/update, found and fixed the blank first-presentation login sheet, and checked its corrected controls. Light and dark UI were inspected; the dark primary-action contrast was corrected and visually rechecked. Native standard Dynamic Type is used; expanded-text and real-device accessibility acceptance remain pending.
+
+The final signed iPhone archive succeeded at `/private/tmp/Lens-0.1.0-1-final.xcarchive`, version 0.1.0, build 1. This is a signed archive, not proof of TestFlight upload or availability. The simulator's successful tests do not establish third-party account sign-in, Face ID/passcode interaction, actual website session survival, OAuth/popups/media/location compatibility or owner acceptance. Those are the stage-one TestFlight acceptance checks.
+
+Apple Developer bundle ID `com.slpcc63.lens.browser` was registered successfully on the existing owner team. The owner signed into App Store Connect. No Lens App Store Connect app record, upload, beta build or public release has been completed. The unfinished New App form was canceled, so do not assume an app record exists. A later browser access attempt encountered another active window; a request to bring the signed-in App Store Connect window forward is pending. Continue only in the Apple setup window and preserve unrelated windows.
+
+Source recovery: iCloud offloaded newly created source files, blocking file reads and rebuilds. A download was requested. Exact authoring inputs were recovered from this chat's tool log into `/private/tmp/lens-stage-one-recovered`, preserving the originals. Selected UI assets came from the verified November 15 full-catalog distribution snapshot; the unchanged Lens mark was retrieved from its immutable canonical GitHub commit. The built fixes were copied back into the working tree. Keep the temporary source until the repository changes are durably committed. Do not treat the original unsigned Keychain failure (-34018), failed interrupted build or failed simulator launch as passing tests.
+
+Branding uses current central Doxle family guidance and edition 0.1 draft conventions. Symbols were selected from the full 200-icon catalog. The app icon is an opaque 1024px platform export of the existing Lens raster mark, with its native source-resolution limitation preserved in README. No product rename or new identity approval is inferred.
+
+Project metadata: canonical GitHub verified as slpcc63/lens. Required `.compass` identity/production guide remain a migration/readiness gap because a stable existing hosted project ID has not been verified. No IDs, hosted writes or coverage receipts were invented. Momentum remains retired.
+
+Next: complete the Lens | Doxle App Store Connect record for this exact registered bundle, export/validate/upload the approved TestFlight build, verify Apple's processing, enable only the intended owner test access, and give exact TestFlight steps/build identity. Do not claim completion before availability is verified. Public App Store/GitHub release remains unapproved. Discuss stage two after owner stage-one review.
+
+report_back_to: Sniffies / Lens distribution and iPhone app chat
+report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
+report_back_instructions: Return exact source/build/archive identity, test evidence, App Store Connect app ID, upload/processing status, owner testing result and remaining blockers here. Never include credentials or private profile information.
