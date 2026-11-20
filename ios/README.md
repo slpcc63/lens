@@ -62,3 +62,9 @@ QA: QA-BUILD-4.md, request lens-ios-preview-sync-build4 revision 1. Keep previou
 
 
 Build-4 availability verified: App Store Connect Owner Testing shows 1 tester / 4 builds; 0.1.0 (4) Internal is Testing, UUID ab4777ab-a16f-4568-9d6a-c20bd1fba150. Processing/browser-auth blocker resolved. No duplicate upload/assignment or public release action. Stage-two build handoff: WIZARD-HANDOFF.md.
+
+## Build 5 stage-two wizard candidate — November 20, 2026
+
+Version 0.1.0 (5) adds the local, per-site setup wizard described in `WIZARD-HANDOFF.md`: bounded current-page scanning, field confirmation and correction, filters with explicit unknown/missing handling, real 5-positive/5-negative calibration, correction and rerun, and reversible dim/show/hide preview. Settings are versioned separately from the build-4 account schema; production and public release remain unchanged.
+
+All 36 signed simulator checks pass (`BUILD-5-NATIVE-CHECKS.txt`), covering the stage-one regression suite, preview sync, wizard model, persistence, generic scanner bridge and reversible preview behavior. Internal human QA is `QA-BUILD-5.md`, request `lens-ios-stage-two-wizard-build5` revision 1. Actual-site compatibility, physical-device behavior and owner acceptance remain unverified until that request is completed. At Accessibility XXXL, the pre-existing home screen is scrollable but visually oversized; owner QA should record whether that presentation is acceptable.

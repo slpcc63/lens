@@ -1,0 +1,39 @@
+PASS: URL normalization removes saved tokens
+PASS: Reject unsafe saved address
+PASS: Reject unsafe saved address
+PASS: Reject unsafe saved address
+PASS: Reject unsafe saved address
+PASS: Saved sites survive store recreation
+PASS: Duplicate site rejected
+PASS: Editing URL preserves stable identity and strips tokens
+PASS: Preferred account reminder persists
+PASS: Edit rejects URL collision without reordering sites
+PASS: Existing build-one saved sites decode without losing data
+PASS: Account download applies validated settings and updates generation
+PASS: Invalid account snapshot cannot overwrite local sites
+PASS: Missing and empty share inboxes preserve sites without an error
+PASS: Share inbox imports a sanitized HTTPS shortcut
+PASS: Keychain round trip
+PASS: Keychain exact-origin isolation
+PASS: Keychain update
+PASS: Keychain delete
+PASS: WebKit renders a synthetic login page
+PASS: Credential fill refuses origin mismatch
+PASS: Rejected fill leaves page fields untouched
+PASS: Generic scanner reads two differently structured visible listings
+PASS: Scanner suggests age and emoji position mappings from visible evidence
+PASS: Scanner suggests fields without a site-specific adapter
+PASS: Per-site wizard mappings and preview choice save and reopen separately
+PASS: Preview dims only evaluated blocked profiles
+PASS: Show all reverses preview attributes and explanations
+PASS: Beta sync endpoint is configured
+PASS: First WebKit client creates a preview account
+PASS: Independent WebKit client signs in to the same account
+PASS: Native bridge transfers settings between independent clients
+PASS: Reverse native transfer preserves edits and stable identity
+PASS: Both native downloads preserve a local backup
+PASS: Synthetic WebKit session signs out
+PASS: Synthetic WebKit session signs out
+
+All local checks passed. Synthetic listing checks are not actual-site or owner acceptance.
+
