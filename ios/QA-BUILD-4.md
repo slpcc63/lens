@@ -2,7 +2,7 @@
 
 Request ID: lens-ios-preview-sync-build4
 Revision: 1
-State: awaiting Apple processing and Owner Testing access verification. Do not begin until TestFlight offers exact build 0.1.0 (4).
+State: available for owner testing. App Store Connect confirms 0.1.0 (4) Internal is Testing in Owner Testing (1 tester, 4 builds). Build UUID ab4777ab-a16f-4568-9d6a-c20bd1fba150. Verify exact build 0.1.0 (4) before beginning.
 Project: Lens | Doxle. Source commit 52a6bdb68feb8e86c150f0fe96156f2f5a280aa7; app com.slpcc63.lens.browser; share com.slpcc63.lens.browser.share.
 App executable SHA256: 8e2120020cd3d2e66c4c815a3c3d0f2a622d50bcac09d80c7cb45d9276abae7b.
 

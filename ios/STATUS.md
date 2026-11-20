@@ -42,3 +42,6 @@ Supersedes earlier disabled-sync state for this candidate only. Version 0.1.0 (4
 30 native simulator checks pass (BUILD-4-NATIVE-CHECKS.txt), including real preview signup/sign-in/native bridge transfer in both directions using synthetic accounts and separate WebKit stores. Mobile form adaptation runs only on the exact first-party preview sign-in paths, using platform fonts and existing Doxle design-system 0.1 defaults; no artwork changed. The final archive signature and packaged build/URL were verified. Build 3 uploaded successfully, then a mobile layout problem was found; final QA targets build 4. Build 4 upload/processing/group verification remains pending until recorded in the source handoff. No owner physical-device acceptance or public-release claim.
 
 QA: QA-BUILD-4.md, request lens-ios-preview-sync-build4 revision 1. Keep previous submitted build-2 QA separate. Production server and public release remain unchanged. Existing Compass metadata migration gap remains.
+
+
+Build-4 availability verified: App Store Connect Owner Testing shows 1 tester / 4 builds; 0.1.0 (4) Internal is Testing, UUID ab4777ab-a16f-4568-9d6a-c20bd1fba150. Processing/browser-auth blocker resolved. No duplicate upload/assignment or public release action. Stage-two build handoff: WIZARD-HANDOFF.md.
