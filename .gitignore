@@ -2,3 +2,5 @@
 *.zip
 !dist/lens-brave-*.zip
 __pycache__/
+xcuserdata/
+*.xcuserstate

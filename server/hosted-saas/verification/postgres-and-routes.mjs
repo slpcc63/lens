@@ -1,0 +1,63 @@
+// Synthetic integration test. Refuses all non-loopback / non-test database targets.
+import { createRequire } from 'node:module';
+import { readFile, writeFile, mkdtemp, copyFile, symlink, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import assert from 'node:assert/strict';
+const connection = new URL(process.env.LENS_SYNC_TEST_DATABASE_URL ?? 'https://invalid');
+assert.ok(['postgres:', 'postgresql:'].includes(connection.protocol));
+assert.ok(['127.0.0.1','localhost','[::1]'].includes(connection.hostname), 'Loopback only');
+assert.equal(connection.pathname, '/lens_sync_test');
+assert.equal(process.env.LENS_SYNC_TEST_CONFIRM, 'synthetic-lens-only');
+assert.ok(process.env.LENS_HOSTED_SAAS_ROOT, 'Set the existing shared-account repository root');
+const root=process.env.LENS_HOSTED_SAAS_ROOT;
+const require=createRequire(join(root,'package.json'));
+const {Pool}=require('pg'); const ts=require('typescript');
+const {readSettings,writeSettings}=await import('../app/api/lens/schema.mjs');
+const schema='lens_test_'+crypto.randomUUID().replaceAll('-','');
+const admin=new Pool({connectionString:connection.href});
+let db; let fixture;
+try {
+ await admin.query(`CREATE SCHEMA ${schema}`);
+ connection.searchParams.set('options', '-c search_path='+schema);
+ db=new Pool({connectionString:connection.href});
+ await db.query(await readFile(new URL('../migrations/001_lens_settings.sql',import.meta.url),'utf8'));
+ const snapshot={schemaVersion:1,sites:[{id:'a1b2c3d4-1111-4222-8333-123456789abc',name:'Synthetic',url:'https://example.test'}]};
+ assert.equal(await writeSettings(db,'synthetic-A',{expectedRevision:0,snapshot}),1);
+ const results=await Promise.all([writeSettings(db,'synthetic-A',{expectedRevision:1,snapshot}),writeSettings(db,'synthetic-A',{expectedRevision:1,snapshot})]);
+ assert.deepEqual(results.sort(),[2,null].sort());
+ assert.equal((await readSettings(db,'synthetic-B')).snapshot.sites.length,0);
+ assert.equal(await writeSettings(db,'synthetic-B',{expectedRevision:2,snapshot}),null);
+ assert.equal(await writeSettings(db,'synthetic-A',{expectedRevision:0,snapshot}),null);
+ console.log('PASS PostgreSQL: migration, owner isolation, concurrent compare-and-swap and stale insert rejection');
+ fixture=await mkdtemp(join(tmpdir(),'lens-route-test-'));
+ await symlink(join(root,'node_modules'),join(fixture,'node_modules'));
+ for(const file of ['schema.mjs','portal.mjs']) await copyFile(new URL('../app/api/lens/'+file,import.meta.url),join(fixture,file));
+ await writeFile(join(fixture,'auth.mjs'),"export const auth={api:{async getSession({headers}){const id=headers.get('x-test-user');return id?{user:{id,email:'synthetic@example.invalid'}}:null}}};");
+ const source=(await readFile(new URL('../app/api/lens/route.ts',import.meta.url),'utf8')).replace('"@/lib/auth"','"./auth.mjs"');
+ await writeFile(join(fixture,'route.mjs'),ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);
+ process.env.LENS_DATABASE_URL=connection.href;
+ const {GET,PUT}=await import(join(fixture,'route.mjs'));
+ const url='https://app.slpcc63.com/api/lens';
+ const request=(body,headers={})=>new Request(url,{method:'PUT',headers:{'Content-Type':'application/json',Origin:'https://app.slpcc63.com',...headers},body:JSON.stringify(body)});
+ assert.equal((await GET(new Request(url+'?format=json'))).status,401);
+ assert.equal((await GET(new Request(url))).status,303);
+ assert.equal((await PUT(request({}, {Origin:'https://evil.invalid'}))).status,403);
+ assert.equal((await PUT(request({}))).status,401);
+ assert.equal((await PUT(request({accountId:'other'},{'x-test-user':'synthetic-A'}))).status,409);
+ const a=await (await GET(new Request(url+'?format=json',{headers:{'x-test-user':'synthetic-A'}}))).json();
+ assert.equal(a.userId,'synthetic-A');assert.equal(a.revision,2);
+ const b=await (await GET(new Request(url+'?format=json',{headers:{'x-test-user':'synthetic-B'}}))).json();assert.equal(b.snapshot.sites.length,0);
+ assert.equal((await PUT(request({accountId:'synthetic-A',expectedRevision:1,snapshot},{'x-test-user':'synthetic-A'}))).status,409);
+ assert.equal((await PUT(request({accountId:'synthetic-A',expectedRevision:2,snapshot},{'x-test-user':'synthetic-A'}))).status,200);
+ assert.equal((await PUT(request({accountId:'synthetic-A',expectedRevision:3,snapshot:{...snapshot,password:'secret'}},{'x-test-user':'synthetic-A'}))).status,400);
+ const html=await GET(new Request(url,{headers:{'x-test-user':'synthetic-A'}}));assert.match(html.headers.get('content-security-policy'),/frame-ancestors 'none'/);assert.equal(html.headers.get('cache-control'),'no-store');
+ console.log('PASS HTTP handlers: unauthenticated, cross-origin and changed-account rejection; owner isolation; conflicts; valid upload; schema rejection; CSP and no-store');
+ console.log('Authentication is synthetic here. Live Better Auth / Google / two-device acceptance is NOT established.');
+} finally {
+ if(db) await db.end();
+ await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await admin.end();
+ if(fixture) await rm(fixture,{recursive:true,force:true});
+}
+// The imported Next route owns a pg pool; end this standalone synthetic test process.
+process.exit(0);
