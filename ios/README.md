@@ -50,3 +50,12 @@ Site settings edit the same stable site record rather than remove/readd it. The 
 The account-name setting is a reminder only, not a verified Apple Passwords entry selector. The previous password interface is removed; dormant vault code/data are retained to avoid deleting credentials. Normal website sign-in/session behavior stays in WebKit.
 
 Account sync is an undeployed integration candidate; see `server/hosted-saas/README.md`. No sync URL is enabled in the shipped project configuration yet. Do not describe this build as already syncing across devices.
+
+
+## Build 4 preview sync and inbox fix — November 19, 2026
+
+Supersedes earlier disabled-sync state for this candidate only. Version 0.1.0 (4) embeds the tested preview endpoint in explicit Lens/Info.plist. Exact-host/main-frame/path checks remain; native upload checks derive the same configured origin. The existing account store UUID, site data path, bundles and App Group remain unchanged. Missing share inbox directories are initialized as normal empty inboxes; pending requests and existing sites remain.
+
+30 native simulator checks pass (BUILD-4-NATIVE-CHECKS.txt), including real preview signup/sign-in/native bridge transfer in both directions using synthetic accounts and separate WebKit stores. Mobile form adaptation runs only on the exact first-party preview sign-in paths, using platform fonts and existing Doxle design-system 0.1 defaults; no artwork changed. The final archive signature and packaged build/URL were verified. Build 3 uploaded successfully, then a mobile layout problem was found; final QA targets build 4. Build 4 upload/processing/group verification remains pending until recorded in the source handoff. No owner physical-device acceptance or public-release claim.
+
+QA: QA-BUILD-4.md, request lens-ios-preview-sync-build4 revision 1. Keep previous submitted build-2 QA separate. Production server and public release remain unchanged. Existing Compass metadata migration gap remains.
