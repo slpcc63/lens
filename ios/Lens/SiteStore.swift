@@ -89,9 +89,12 @@ enum AppIssue: LocalizedError {
         try JSONEncoder().encode(next).write(to: file, options: [.atomic, .completeFileProtection])
         sites = next; generation = UUID()
     }
-    func importSharedSites() {
-        guard let inbox = SharedSiteInbox.directory else { return }
+    func importSharedSites(from inbox: URL? = SharedSiteInbox.directory) {
+        guard let inbox else { return }
         do {
+            // No share has been made yet on a fresh install. This is an empty
+            // inbox, not a failed request; initialize it before listing files.
+            try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
             let files = try FileManager.default.contentsOfDirectory(at: inbox, includingPropertiesForKeys: nil).filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
             for file in files {
                 let item = try JSONDecoder().decode(SharedSiteRequest.self, from: Data(contentsOf: file))

@@ -47,6 +47,11 @@ struct SmokeTestView: View {
             var invalidSnapshotRejected = false
             do { try store.replace(with: [SavedSite(name: "Unsafe", url: URL(string: "http://unsafe.example")!)]) } catch { invalidSnapshotRejected = true }
             try require(invalidSnapshotRejected && store.sites == migrated, "Invalid account snapshot cannot overwrite local sites")
+            let emptyInbox = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: emptyInbox) }
+            store.importSharedSites(from: emptyInbox)
+            store.importSharedSites(from: emptyInbox)
+            try require(store.error == nil && store.sites == migrated, "Missing and empty share inboxes preserve sites without an error")
             let shareHost = "share-" + UUID().uuidString.lowercased() + ".invalid"
             try SharedSiteInbox.save(name: "Shared", url: URL(string: "https://" + shareHost + "/path?token=private#secret")!)
             store.importSharedSites()
@@ -76,6 +81,7 @@ struct SmokeTestView: View {
             try require(refused as? Bool == false, "Credential fill refuses origin mismatch")
             let allInputValues = try await web.evaluateJavaScript("[...document.querySelectorAll('input')].every(e=>e.value==='')")
             try require(allInputValues as? Bool == true, "Rejected fill leaves page fields untouched")
+            if ProcessInfo.processInfo.arguments.contains("--sync-preview-test") { checks += try await NativePreviewCheck.run() }
             result = checks.joined(separator: "\n") + "\n\nAll local checks passed. Real website sign-in and device authentication still need iPhone QA."
         } catch { result = checks.joined(separator: "\n") + "\n" + error.localizedDescription }
         let file = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("stage-one-smoke.txt")

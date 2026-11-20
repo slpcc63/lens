@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>LensAccountSyncURL</key>
+	<string>https://hosted-saas-b3im5yh15-slpcc63-8889s-projects.vercel.app/api/lens</string>
+</dict>
+</plist>
