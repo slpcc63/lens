@@ -120,6 +120,7 @@ struct BrowserScreen: View {
     @StateObject private var browser: BrowserModel
     @State private var editingAddress = false
     @State private var destination = ""
+    @State private var wizard = false
     init(initialSite: SavedSite, store: SiteStore) { self.initialSite = initialSite; self.store = store; _browser = StateObject(wrappedValue: BrowserModel(url: initialSite.url)) }
     var body: some View {
         VStack(spacing: 0) {
@@ -138,6 +139,7 @@ struct BrowserScreen: View {
             .navigationBarBackButtonHidden(true)
             .onChange(of: site.url) { _, url in browser.navigate(url.absoluteString) }
             .sheet(isPresented: $settings) { SiteSettingsView(site: site, store: store) }
+            .fullScreenCover(isPresented: $wizard) { WizardView(site: site, browser: browser) }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: { HStack { Image(systemName: "square.grid.2x2"); Text("Sites") } }.tint(Family.siteReturn).accessibilityLabel("Return to saved sites")
@@ -150,6 +152,9 @@ struct BrowserScreen: View {
                     Button { browser.webView.goForward() } label: { FamilyIcon(name: "forward").frame(minWidth: 44, minHeight: 44) }.disabled(!browser.canGoForward).accessibilityLabel("Forward in website")
                     Spacer()
                     Button { browser.error = nil; browser.webView.reload() } label: { FamilyIcon(name: "refresh").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel("Reload website")
+                    Spacer()
+                    Button { wizard = true } label: { Image(systemName: "line.3.horizontal.decrease.circle").frame(minWidth: 44, minHeight: 44) }
+                        .accessibilityLabel("Set up profile filtering")
                 }
             }
             .alert("Go to website", isPresented: $editingAddress) {

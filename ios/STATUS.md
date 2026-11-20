@@ -45,3 +45,17 @@ QA: QA-BUILD-4.md, request lens-ios-preview-sync-build4 revision 1. Keep previou
 
 
 Build-4 availability verified: App Store Connect Owner Testing shows 1 tester / 4 builds; 0.1.0 (4) Internal is Testing, UUID ab4777ab-a16f-4568-9d6a-c20bd1fba150. Processing/browser-auth blocker resolved. No duplicate upload/assignment or public release action. Stage-two build handoff: WIZARD-HANDOFF.md.
+
+## Stage-two wizard vertical slice — November 20, 2026
+
+Review branch `codex/ios-stage-two-wizard` starts from handoff commit `58baafb`. The current local candidate adds an explicit five-step wizard from the open website: scan the visible loaded listing; confirm, correct or disable detected fields and option mappings; configure units, allowed values and an explicit missing-value policy; calibrate with up to five real matching and five real blocked samples without manufacturing examples; and preview with reversible Show all / Dim blocked / Hide blocked controls. Hide is never selected automatically.
+
+The detector is one bounded main-frame DOM structure/text/accessibility-label scanner, not a per-site adapter. It does not inspect photographs, form values, messages, passwords, network traffic, canvas content or cross-origin frames. Emoji including eggplant and peach are visible evidence that can suggest a position mapping; the user must confirm or correct it. Scans identify the exact page/origin and visible card count, and zero-result scans state the limitation instead of claiming compatibility.
+
+Confirmed mappings and filters use a separate versioned `Lens/wizard/v1/<saved-site-UUID>.json` file. Existing build-4 site JSON, stable IDs, cookies, sessions, account-sync schema and authentication are unchanged. Editing a saved URL therefore preserves the wizard configuration. Preview mutations are limited to detected profile elements in the current page; Show all restores Lens-added attributes and any pre-existing title. A debounced observer reapplies the selected preview to already-tagged dynamic elements, while genuinely new profiles require the visible Rescan action.
+
+Verification: unsigned generic-simulator compile and locally signed simulator build succeeded. The signed self-test reports 28 passes: all preserved local build-4 checks plus two differently structured synthetic listings, generic age/body/activity/emoji-position suggestions, per-site save/reopen, blocked-only dimming and full Show all restoration. Dark-mode native inspection confirmed the browser entry point, Step 1 scan screen and honest zero-result field screen. Actual-site compatibility, light appearance, large text, physical-device behavior, real calibration quality and owner acceptance remain unverified. No TestFlight upload, server change, production change, public GitHub/App Store release or Compass write was performed. The existing missing `.compass` identity/production guide remains a release-readiness gap.
+
+report_back_to: Sniffies / Lens distribution and iPhone app chat
+report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
+report_back_instructions: Return implementation commit/PR, actual wizard behavior, signed simulator evidence, beta availability and unresolved compatibility/accessibility limits here. Do not infer public release or owner acceptance.

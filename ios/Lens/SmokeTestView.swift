@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 
 struct SmokeTestView: View {
-    @State private var result = "Running stage-one checks…"
+    @State private var result = "Running Lens checks…"
     var body: some View {
         ScrollView { Text(result).font(.body.monospaced()).padding() }
             .task { await run() }
@@ -81,11 +81,63 @@ struct SmokeTestView: View {
             try require(refused as? Bool == false, "Credential fill refuses origin mismatch")
             let allInputValues = try await web.evaluateJavaScript("[...document.querySelectorAll('input')].every(e=>e.value==='')")
             try require(allInputValues as? Bool == true, "Rejected fill leaves page fields untouched")
+            let fixtureOne = """
+            <main><h1>Fixture Grid</h1><section>
+              <article><h2>Alex</h2><dl><dt>Age</dt><dd>34</dd><dt>Position</dt><dd>Vers Top 🍆</dd></dl></article>
+              <article><h2>Blair</h2><dl><dt>Age</dt><dd>42</dd><dt>Position</dt><dd>Bottom 🍑</dd></dl></article>
+            </section></main>
+            """
+            let fixtureTwo = """
+            <main><h1>Fixture List</h1><div class='listing'>
+              <div class='person-tile'><h3>Casey</h3><p data-label='Build' data-value='Athletic'>Athletic</p><p><span>Last seen</span><span>Online</span></p></div>
+              <div class='person-tile'><h3>Drew</h3><p data-label='Build' data-value='Slim'>Slim</p><p><span>Last seen</span><span>12 minutes</span></p></div>
+            </div></main>
+            """
+            let (firstScan, previewWeb) = try await scanFixture(fixtureOne)
+            let (secondScan, _) = try await scanFixture(fixtureTwo)
+            try require(firstScan.profiles.count == 2 && secondScan.profiles.count == 2, "Generic scanner reads two differently structured visible listings")
+            try require(firstScan.proposedMappings.contains { $0.lensField == .age } && firstScan.proposedMappings.contains { $0.lensField == .position }, "Scanner suggests age and emoji position mappings from visible evidence")
+            try require(secondScan.proposedMappings.contains { $0.lensField == .bodyType } && secondScan.proposedMappings.contains { $0.lensField == .activity }, "Scanner suggests fields without a site-specific adapter")
+            let wizardDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: wizardDirectory) }
+            let wizardStore = WizardStore(directory: wizardDirectory), wizardSiteID = UUID()
+            var wizardConfiguration = WizardConfiguration(siteID: wizardSiteID, mappings: firstScan.proposedMappings)
+            wizardConfiguration.mappings[0].state = .confirmed
+            wizardConfiguration.previewMode = .dim
+            try wizardStore.save(wizardConfiguration)
+            let reopenedWizard = try wizardStore.load(siteID: wizardSiteID)
+            try require(reopenedWizard.siteID == wizardSiteID && reopenedWizard.mappings[0].state == .confirmed && reopenedWizard.previewMode == .dim, "Per-site wizard mappings and preview choice save and reopen separately")
+            _ = try await previewWeb.callAsyncJavaScript(BrowserModel.wizardPreviewScript,
+                arguments: ["mode": "dim", "reasons": ["scan-1": "Age is outside the selected range."]], in: nil, contentWorld: .page)
+            let dimmed = try await previewWeb.evaluateJavaScript("document.querySelector('[data-lens-profile-id=scan-1]').hasAttribute('data-lens-would-block')")
+            try require(dimmed as? Bool == true, "Preview dims only evaluated blocked profiles")
+            _ = try await previewWeb.callAsyncJavaScript(BrowserModel.wizardPreviewScript,
+                arguments: ["mode": "showAll", "reasons": ["scan-1": "Age is outside the selected range."]], in: nil, contentWorld: .page)
+            let restoredPreview = try await previewWeb.evaluateJavaScript("!document.querySelector('[data-lens-profile-id=scan-1]').hasAttribute('data-lens-would-block') && !document.querySelector('[data-lens-profile-id=scan-1]').hasAttribute('data-lens-original-title')")
+            try require(restoredPreview as? Bool == true, "Show all reverses preview attributes and explanations")
             if ProcessInfo.processInfo.arguments.contains("--sync-preview-test") { checks += try await NativePreviewCheck.run() }
-            result = checks.joined(separator: "\n") + "\n\nAll local checks passed. Real website sign-in and device authentication still need iPhone QA."
+            result = checks.joined(separator: "\n") + "\n\nAll local checks passed. Synthetic listing checks are not actual-site or owner acceptance."
         } catch { result = checks.joined(separator: "\n") + "\n" + error.localizedDescription }
         let file = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("stage-one-smoke.txt")
         try? result.write(to: file, atomically: true, encoding: .utf8)
+    }
+
+    @MainActor private func scanFixture(_ html: String) async throws -> (WizardScanResult, WKWebView) {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 700), configuration: configuration)
+        let navigation = ReadyNavigation()
+        web.navigationDelegate = navigation
+        web.loadHTMLString(html, baseURL: URL(string: "https://fixture.example")!)
+        for _ in 0..<100 {
+            if navigation.finished { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        guard navigation.finished else { throw AppIssue.message("Synthetic wizard fixture did not load.") }
+        let value = try await web.callAsyncJavaScript(BrowserModel.wizardScanScript,
+            arguments: ["expectedOrigin": "https://fixture.example"], in: nil, contentWorld: .page)
+        guard let json = value as? String else { throw AppIssue.message("Synthetic wizard fixture did not return JSON.") }
+        return (try WizardDetector.decode(json), web)
     }
 }
 
