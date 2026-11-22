@@ -2,8 +2,8 @@
 
 request_id: lens-ios-stage-two-wizard-build5
 revision: 1
-state: pending TestFlight verification
-candidate: 0.1.0 (5)
+state: available in TestFlight Owner Testing
+candidate: 0.1.0 (5), Internal, Testing
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Report the exact build and device, every completed step, failures or page-compatibility blockers, and whether the owner accepts stage two for further release consideration. Do not include passwords, private profile screenshots or copied profile data.
