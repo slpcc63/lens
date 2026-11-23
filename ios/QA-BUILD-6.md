@@ -3,8 +3,8 @@
 request_id: lens-ios-stage-two-wizard
 revision: 2
 supersedes: lens-ios-stage-two-wizard-build5 revision 1 for the corrected candidate only; preserve the build-5 failure report
-state: pending TestFlight upload and Owner Testing verification
-candidate: 0.1.0 (6), Internal only
+state: uploaded; Apple processing and Owner Testing availability verification pending
+candidate: 0.1.0 (6), Internal-only upload
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Report the exact build/device, grid count, each collected-profile result, field confirmation, filters, calibration/correction, preview restoration, and any compatibility blocker. Do not include passwords, private profile screenshots, names, locations, messages, or copied profile data.
