@@ -50,6 +50,7 @@ enum WizardLensField: String, Codable, CaseIterable, Identifiable {
 }
 
 enum WizardFieldState: String, Codable, CaseIterable { case proposed, confirmed, disabled }
+enum WizardScanKind: String, Codable { case collection, detail, none }
 enum WizardMissingPolicy: String, Codable, CaseIterable, Identifiable {
     case show, block
     var id: String { rawValue }
@@ -92,6 +93,9 @@ struct WizardConfiguration: Codable, Equatable {
     var mappings: [WizardFieldMapping] = []
     var filters: [WizardFilter] = []
     var previewMode: WizardPreviewMode = .showAll
+    // Optional keeps build-5 files backward compatible. Samples stay on-device,
+    // use generic titles, and are protected with the rest of the wizard file.
+    var collectedProfiles: [WizardProfileSample]?
     var lastScanDescription: String?
     var updatedAt = Date()
 }
@@ -115,6 +119,8 @@ struct WizardScanResult: Codable, Equatable {
     var profiles: [WizardProfileSample]
     var proposedMappings: [WizardFieldMapping]
     var limitations: [String]
+    var kind: WizardScanKind
+    var visibleReferenceCount: Int
 }
 
 enum WizardOutcome: String { case match, blocked, unknown }
@@ -132,12 +138,22 @@ enum WizardDetector {
         var sampleDescription: String
         var profiles: [WizardProfileSample]
         var limitations: [String]
+        var kind: WizardScanKind
+        var visibleReferenceCount: Int
     }
 
     static func decode(_ json: String) throws -> WizardScanResult {
         let payload = try JSONDecoder().decode(Payload.self, from: Data(json.utf8))
+        let mappings = mappings(for: payload.profiles)
+        return WizardScanResult(origin: payload.origin, pageTitle: payload.pageTitle,
+                                sampleDescription: payload.sampleDescription, profiles: payload.profiles,
+                                proposedMappings: mappings, limitations: payload.limitations,
+                                kind: payload.kind, visibleReferenceCount: payload.visibleReferenceCount)
+    }
+
+    static func mappings(for profiles: [WizardProfileSample]) -> [WizardFieldMapping] {
         var collected: [String: (label: String, evidence: [String], values: [String: Int])] = [:]
-        for profile in payload.profiles {
+        for profile in profiles {
             for field in profile.fields {
                 var item = collected[field.key] ?? (field.label, [], [:])
                 if item.evidence.count < 3 { item.evidence.append(field.source + ": " + field.value) }
@@ -159,9 +175,7 @@ enum WizardDetector {
                 options: values.map { WizardOptionMapping(rawValue: $0, lensValue: canonicalOption($0, for: suggestion), evidenceCount: item.values[$0] ?? 0) }
             )
         }
-        return WizardScanResult(origin: payload.origin, pageTitle: payload.pageTitle,
-                                sampleDescription: payload.sampleDescription, profiles: payload.profiles,
-                                proposedMappings: mappings, limitations: payload.limitations)
+        return mappings
     }
 
     static func canonicalOption(_ raw: String, for field: WizardLensField?) -> String {

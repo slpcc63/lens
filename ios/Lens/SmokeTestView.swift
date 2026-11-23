@@ -98,15 +98,35 @@ struct SmokeTestView: View {
             try require(firstScan.profiles.count == 2 && secondScan.profiles.count == 2, "Generic scanner reads two differently structured visible listings")
             try require(firstScan.proposedMappings.contains { $0.lensField == .age } && firstScan.proposedMappings.contains { $0.lensField == .position }, "Scanner suggests age and emoji position mappings from visible evidence")
             try require(secondScan.proposedMappings.contains { $0.lensField == .bodyType } && secondScan.proposedMappings.contains { $0.lensField == .activity }, "Scanner suggests fields without a site-specific adapter")
+            let markerGrid = """
+            <main><h1>Map</h1><div class='map-layer'>
+              <button class='map-marker' data-profile-id='alpha123' aria-label='Profile marker'></button>
+              <button class='map-marker' data-profile-id='bravo456' aria-label='Profile marker'></button>
+            </div></main>
+            """
+            let detailProfile = """
+            <main class='open-profile'><h1>Profile</h1><p>32, 6'3", 220 lb, 8.5" uncut, muscular, dom top</p>
+              <ul><li><span>Looking for</span><span>Dates</span></li><li><span>Status</span><span>Online</span></li></ul>
+            </main>
+            """
+            let (gridScan, gridWeb) = try await scanFixture(markerGrid, baseURL: URL(string: "https://fixture.example/map")!)
+            let (detailScan, _) = try await scanFixture(detailProfile, baseURL: URL(string: "https://fixture.example/profile/alpha123")!)
+            try require(gridScan.kind == .collection && gridScan.visibleReferenceCount == 2 && gridScan.proposedMappings.isEmpty, "Marker grid reports visible references without inventing filter fields")
+            try require(detailScan.kind == .detail && detailScan.profiles.count == 1 && detailScan.profiles[0].id == "profile-alpha123", "Open profile is collected once instead of treating its repeated rows as profiles")
+            try require([WizardLensField.age, .height, .weight, .endowment, .bodyType, .position].allSatisfy { field in detailScan.proposedMappings.contains { $0.lensField == field } }, "Open profile derives the expected filter-field proposals")
             let wizardDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             defer { try? FileManager.default.removeItem(at: wizardDirectory) }
             let wizardStore = WizardStore(directory: wizardDirectory), wizardSiteID = UUID()
-            var wizardConfiguration = WizardConfiguration(siteID: wizardSiteID, mappings: firstScan.proposedMappings)
+            var wizardConfiguration = WizardConfiguration(siteID: wizardSiteID, mappings: firstScan.proposedMappings, collectedProfiles: detailScan.profiles)
             wizardConfiguration.mappings[0].state = .confirmed
             wizardConfiguration.previewMode = .dim
             try wizardStore.save(wizardConfiguration)
             let reopenedWizard = try wizardStore.load(siteID: wizardSiteID)
-            try require(reopenedWizard.siteID == wizardSiteID && reopenedWizard.mappings[0].state == .confirmed && reopenedWizard.previewMode == .dim, "Per-site wizard mappings and preview choice save and reopen separately")
+            try require(reopenedWizard.siteID == wizardSiteID && reopenedWizard.mappings[0].state == .confirmed && reopenedWizard.previewMode == .dim && reopenedWizard.collectedProfiles == detailScan.profiles, "Per-site wizard mappings, collected samples, and preview choice save and reopen separately")
+            _ = try await gridWeb.callAsyncJavaScript(BrowserModel.wizardPreviewScript,
+                arguments: ["mode": "dim", "reasons": ["profile-alpha123": "Age is outside the selected range."]], in: nil, contentWorld: .page)
+            let markerDimmed = try await gridWeb.evaluateJavaScript("document.querySelector('[data-profile-id=alpha123]').hasAttribute('data-lens-would-block')")
+            try require(markerDimmed as? Bool == true, "Collected profile identity links preview decisions back to matching grid markers")
             _ = try await previewWeb.callAsyncJavaScript(BrowserModel.wizardPreviewScript,
                 arguments: ["mode": "dim", "reasons": ["scan-1": "Age is outside the selected range."]], in: nil, contentWorld: .page)
             let dimmed = try await previewWeb.evaluateJavaScript("document.querySelector('[data-lens-profile-id=scan-1]').hasAttribute('data-lens-would-block')")
@@ -122,13 +142,13 @@ struct SmokeTestView: View {
         try? result.write(to: file, atomically: true, encoding: .utf8)
     }
 
-    @MainActor private func scanFixture(_ html: String) async throws -> (WizardScanResult, WKWebView) {
+    @MainActor private func scanFixture(_ html: String, baseURL: URL = URL(string: "https://fixture.example")!) async throws -> (WizardScanResult, WKWebView) {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 700), configuration: configuration)
         let navigation = ReadyNavigation()
         web.navigationDelegate = navigation
-        web.loadHTMLString(html, baseURL: URL(string: "https://fixture.example")!)
+        web.loadHTMLString(html, baseURL: baseURL)
         for _ in 0..<100 {
             if navigation.finished { break }
             try await Task.sleep(for: .milliseconds(50))

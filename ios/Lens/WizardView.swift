@@ -33,25 +33,76 @@ enum WizardStep: Int, CaseIterable {
     func performScan() async {
         loading = true; error = nil; notice = nil
         do {
-            let result = try await browser.scanCurrentListing()
-            scan = result
-            let previous = Dictionary(uniqueKeysWithValues: configuration.mappings.map { ($0.sourceKey, $0) })
-            configuration.mappings = result.proposedMappings.map { proposal in
-                guard var existing = previous[proposal.sourceKey] else { return proposal }
-                existing.evidence = proposal.evidence
-                let oldOptions = Dictionary(uniqueKeysWithValues: existing.options.map { ($0.rawValue, $0) })
-                existing.options = proposal.options.map { oldOptions[$0.rawValue] ?? $0 } + existing.options.filter { old in
-                    !proposal.options.contains(where: { $0.rawValue == old.rawValue })
+            var result = try await browser.scanCurrentListing()
+            if result.kind == .detail, let profile = result.profiles.first, !profile.fields.isEmpty {
+                var samples = configuration.collectedProfiles ?? []
+                var safe = profile
+                if let index = samples.firstIndex(where: { $0.id == safe.id }) {
+                    safe.title = samples[index].title
+                    samples[index] = safe
+                } else {
+                    safe.title = "Collected profile \(samples.count + 1)"
+                    samples.append(safe)
                 }
-                return existing
+                configuration.collectedProfiles = Array(samples.suffix(100))
+                applyMappings(WizardDetector.mappings(for: configuration.collectedProfiles ?? []))
+                result.profiles = configuration.collectedProfiles ?? []
+                result.proposedMappings = configuration.mappings
+                scan = result
+                configuration.lastScanDescription = "Collected \(result.profiles.count) open profile \(result.profiles.count == 1 ? "sample" : "samples")."
+                notice = "Profile collected. Tap Done, open another profile, then return and scan again. Continue when you have enough real examples."
+                syncFilters()
+                try save()
+            } else if result.kind == .collection {
+                let saved = Dictionary(uniqueKeysWithValues: (configuration.collectedProfiles ?? []).map { ($0.id, $0) })
+                result.profiles = result.profiles.map { reference in
+                    guard let sample = saved[reference.id] else { return reference }
+                    return WizardProfileSample(id: reference.id, title: sample.title, fields: sample.fields)
+                }
+                result.proposedMappings = WizardDetector.mappings(for: result.profiles)
+                scan = result
+                configuration.lastScanDescription = result.sampleDescription
+                if result.proposedMappings.isEmpty {
+                    notice = "Lens found \(result.visibleReferenceCount) visible grid \(result.visibleReferenceCount == 1 ? "entry" : "entries"), but their filter fields are not exposed in the grid. Open a profile, return to Lens, and scan to collect it."
+                } else {
+                    applyMappings(result.proposedMappings)
+                    syncFilters()
+                    step = .confirm
+                }
+                try save()
+            } else {
+                scan = result
+                configuration.lastScanDescription = result.sampleDescription
+                notice = "Lens could not find a readable grid or open profile on this page."
+                try save()
             }
-            configuration.lastScanDescription = result.sampleDescription
-            syncFilters()
-            try save()
-            step = .confirm
         } catch { self.error = error.localizedDescription }
         loading = false
     }
+
+    func continueWithCollected() {
+        let samples = configuration.collectedProfiles ?? []
+        guard !samples.isEmpty, !configuration.mappings.isEmpty else { return }
+        scan = WizardScanResult(origin: browser.origin ?? "", pageTitle: site.name,
+            sampleDescription: "Using \(samples.count) collected profile \(samples.count == 1 ? "sample" : "samples").",
+            profiles: samples, proposedMappings: configuration.mappings,
+            limitations: ["Only profiles explicitly opened and collected are included."], kind: .detail,
+            visibleReferenceCount: samples.count)
+        step = .confirm
+    }
+
+    func clearCollectedProfiles() {
+        configuration.collectedProfiles = []
+        configuration.mappings = []
+        configuration.filters = []
+        scan = nil
+        notice = "Collected profile samples were removed from this device."
+        try? save()
+    }
+
+    var collectedCount: Int { configuration.collectedProfiles?.count ?? 0 }
+    var canContinue: Bool { collectedCount > 0 && !configuration.mappings.isEmpty }
+    var hasConfirmedMapping: Bool { configuration.mappings.contains { $0.state == .confirmed && $0.lensField != nil } }
 
     func advance(from current: WizardStep) {
         do {
@@ -79,6 +130,19 @@ enum WizardStep: Int, CaseIterable {
     }
 
     func save() throws { try store.save(configuration) }
+
+    private func applyMappings(_ proposals: [WizardFieldMapping]) {
+        let previous = Dictionary(uniqueKeysWithValues: configuration.mappings.map { ($0.sourceKey, $0) })
+        configuration.mappings = proposals.map { proposal in
+            guard var existing = previous[proposal.sourceKey] else { return proposal }
+            existing.evidence = proposal.evidence
+            let oldOptions = Dictionary(uniqueKeysWithValues: existing.options.map { ($0.rawValue, $0) })
+            existing.options = proposal.options.map { oldOptions[$0.rawValue] ?? $0 } + existing.options.filter { old in
+                !proposal.options.contains(where: { $0.rawValue == old.rawValue })
+            }
+            return existing
+        }
+    }
 
     private func syncFilters() {
         let fields = Set(configuration.mappings.filter { $0.state == .confirmed }.compactMap(\.lensField))
@@ -207,6 +271,14 @@ struct WizardView: View {
                 if model.loading { ProgressView().frame(maxWidth: .infinity, minHeight: 44) }
                 else { Label("Scan current listing", systemImage: "viewfinder").frame(maxWidth: .infinity, minHeight: 44) }
             }.buttonStyle(.borderedProminent).disabled(model.loading).accessibilityIdentifier("scanCurrentListing")
+            if model.collectedCount > 0 {
+                Text("Collected on this device: \(model.collectedCount) profile \(model.collectedCount == 1 ? "sample" : "samples").")
+                    .font(.callout).foregroundStyle(.secondary)
+                Button("Continue with \(model.collectedCount) collected") { model.continueWithCollected() }
+                    .buttonStyle(.bordered).disabled(!model.canContinue)
+                Button("Forget collected profiles", role: .destructive) { model.clearCollectedProfiles() }
+                    .buttonStyle(.bordered)
+            }
         }
     }
 
@@ -279,7 +351,7 @@ struct WizardView: View {
             Button("Back") { model.goBack() }.buttonStyle(.bordered)
             Spacer()
             Button(next) { model.advance(from: model.step) }.buttonStyle(.borderedProminent)
-                .disabled(model.step == .confirm && model.configuration.mappings.isEmpty)
+                .disabled(model.step == .confirm && !model.hasConfirmedMapping)
         }.frame(minHeight: 44)
     }
 }

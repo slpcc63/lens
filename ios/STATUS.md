@@ -59,3 +59,9 @@ Verification: unsigned generic-simulator compile and locally signed simulator bu
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Return implementation commit/PR, actual wizard behavior, signed simulator evidence, beta availability and unresolved compatibility/accessibility limits here. Do not infer public release or owner acceptance.
+
+## Build 6 scanner correction — November 22, 2026
+
+Owner testing of build 5 established two actual-site failures: the visible grid returned zero, while an open profile was treated as several profiles and could not continue. Build 6 changes the generic detector and wizard flow without adding a site-specific adapter. It recognizes visible grid/marker references even when their fields are not exposed, reports that limitation honestly, collects one open profile at a time, persists up to 100 generic-titled samples locally in the existing protected per-site wizard file, accumulates field evidence, and requires an explicitly confirmed mapping before filters. The owner can forget the collected samples and dependent mappings in the wizard.
+
+Verification: both unsigned and locally signed simulator builds succeeded. The signed self-test reports 40 passes, preserving the prior safety/sync checks and adding marker-grid counting without invented fields, single-profile collection despite repeated internal rows, expected field proposals, local sample persistence, and stable-identity preview linkage. These are synthetic compatibility checks; actual-site correction and owner acceptance remain pending. QA is `QA-BUILD-6.md`, request `lens-ios-stage-two-wizard` revision 2. TestFlight upload/processing/Owner Testing availability have not yet been recorded here. Production, external testing, public App Store release and public GitHub release remain unchanged and unapproved.

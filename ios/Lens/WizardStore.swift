@@ -19,8 +19,10 @@ import Foundation
     }
 
     func save(_ configuration: WizardConfiguration) throws {
+        let samples = configuration.collectedProfiles ?? []
         guard configuration.schemaVersion == WizardConfiguration.schemaVersion,
-              configuration.mappings.count <= 100, configuration.filters.count <= WizardLensField.allCases.count else {
+              configuration.mappings.count <= 100, configuration.filters.count <= WizardLensField.allCases.count,
+              samples.count <= 100, samples.allSatisfy({ $0.fields.count <= 50 }) else {
             throw AppIssue.message("The filter setup is too large or invalid and was not saved.")
         }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
