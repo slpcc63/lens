@@ -3,8 +3,8 @@
 request_id: lens-ios-stage-two-wizard
 revision: 2
 supersedes: lens-ios-stage-two-wizard-build5 revision 1 for the corrected candidate only; preserve the build-5 failure report
-state: uploaded; Apple processing and Owner Testing availability verification pending
-candidate: 0.1.0 (6), Internal-only upload
+state: available in TestFlight Owner Testing
+candidate: 0.1.0 (6), Internal, Testing
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Report the exact build/device, grid count, each collected-profile result, field confirmation, filters, calibration/correction, preview restoration, and any compatibility blocker. Do not include passwords, private profile screenshots, names, locations, messages, or copied profile data.
@@ -14,6 +14,8 @@ report_back_instructions: Report the exact build/device, grid count, each collec
 Build 6 corrects the two build-5 findings. A visible map/grid can now report profile references even when the grid itself exposes no filter fields. An open profile is collected as one sample instead of treating its repeated internal sections as multiple profiles. Collected samples remain on this device, can be forgotten explicitly, and can be accumulated before continuing to field confirmation.
 
 This remains an internal owner test. It does not approve production changes, external TestFlight distribution, a public App Store release, or a public GitHub release.
+
+Availability verified November 24, 2026: App Store Connect lists build 6 as **Internal**, status **Testing**, assigned to **Owner Testing**, build UUID `1134fad7-c3ec-49da-a231-41ddeb2b7a88`. The owner performed the group assignment; Codex verified the resulting state. No external group or public release was enabled.
 
 ## Focused flow
 
