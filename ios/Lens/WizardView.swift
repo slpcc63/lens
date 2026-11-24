@@ -63,7 +63,7 @@ enum WizardStep: Int, CaseIterable {
                 scan = result
                 configuration.lastScanDescription = result.sampleDescription
                 if result.proposedMappings.isEmpty {
-                    notice = "Lens found \(result.visibleReferenceCount) visible grid \(result.visibleReferenceCount == 1 ? "entry" : "entries"), but their filter fields are not exposed in the grid. Open a profile, return to Lens, and scan to collect it."
+                    notice = "Map scan complete: \(result.visibleReferenceCount) visible \(result.visibleReferenceCount == 1 ? "entry" : "entries") found. Preferences are not ready yet. Tap Done, open one profile, return to Lens, and scan again to collect it."
                 } else {
                     applyMappings(result.proposedMappings)
                     syncFilters()
@@ -265,7 +265,29 @@ struct WizardView: View {
     private var scanStep: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Scan the listing you opened").font(.title2.bold())
-            Text("Navigate the website to its profile cards, grid, list or map first. Lens scans only the visible, loaded top-level page after you tap Scan. It does not inspect photos, messages, passwords, canvas content or cross-origin frames.")
+            Text("Start on the website map. Lens scans only the visible, loaded top-level page after you tap Scan. It does not inspect photos, messages, passwords, canvas content or cross-origin frames.")
+            GroupBox("Follow these steps") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Scan the map").font(.headline)
+                            Text("This counts visible profile entries only. A map scan must not set preferences.").font(.callout).foregroundStyle(.secondary)
+                        }
+                    } icon: { Image(systemName: "1.circle.fill").foregroundStyle(Family.action) }
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Collect one open profile").font(.headline)
+                            Text("Tap Done, open one profile on the website, reopen Lens filtering, and tap Scan again.").font(.callout).foregroundStyle(.secondary)
+                        }
+                    } icon: { Image(systemName: "2.circle.fill").foregroundStyle(Family.action) }
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Repeat, then continue").font(.headline)
+                            Text("Collect several real profiles. Only then choose Continue with collected to confirm fields and set preferences.").font(.callout).foregroundStyle(.secondary)
+                        }
+                    } icon: { Image(systemName: "3.circle.fill").foregroundStyle(Family.action) }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }
             if let description = model.configuration.lastScanDescription { Text("Last scan: \(description)").font(.callout).foregroundStyle(.secondary) }
             Button { Task { await model.performScan() } } label: {
                 if model.loading { ProgressView().frame(maxWidth: .infinity, minHeight: 44) }

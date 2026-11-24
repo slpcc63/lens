@@ -126,6 +126,8 @@ extension BrowserModel {
     const limitations = ['Only the currently visible and loaded page sample was scanned.', 'Images, canvas content and cross-origin frames were not inspected.'];
     const pathID = token(location.pathname);
     const collectionRoute = /^(|map|grid|browse|explore|search|home|nearby|profiles|members)$/i.test(pathID);
+    const mapContext = /^(map|nearby)$/i.test(pathID) || Boolean(document.querySelector(
+      '[role="application"][aria-label*="map" i], [class*="map" i] canvas, [class*="map" i] [class*="marker" i], [data-testid*="map" i]'));
     const detailCandidates = [...document.querySelectorAll('dialog,[role="dialog"],[aria-modal="true"],aside,[class*="profile" i],[data-profile],main,[role="main"]')]
       .filter(visible).slice(0, 200).map(element => ({element, fields: fieldsFor(element)}))
       .filter(item => item.fields.length >= 2).sort((a,b) => b.fields.length - a.fields.length ||
@@ -138,6 +140,12 @@ extension BrowserModel {
       profiles = [{id, title: 'Open profile', fields: detail.fields}];
       return JSON.stringify({origin: location.origin, pageTitle, profiles, limitations, kind: 'detail', visibleReferenceCount: 1,
         sampleDescription: `Collected one open profile with ${detail.fields.length} readable fields on ${pageTitle} at ${location.origin}.`});
+    }
+    if (mapContext && profiles.length) {
+      profiles = profiles.map(profile => ({...profile, fields: []}));
+      limitations.unshift('The map was treated as a reference view. Open profiles are required before setting preferences.');
+      return JSON.stringify({origin: location.origin, pageTitle, profiles, limitations, kind: 'collection', visibleReferenceCount: profiles.length,
+        sampleDescription: `Found ${profiles.length} visible map entries without using marker text as profile fields on ${pageTitle}.`});
     }
     if (profiles.some(profile => profile.fields.length)) {
       return JSON.stringify({origin: location.origin, pageTitle, profiles, limitations, kind: 'collection', visibleReferenceCount: profiles.length,

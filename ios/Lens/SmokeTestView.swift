@@ -100,8 +100,8 @@ struct SmokeTestView: View {
             try require(secondScan.proposedMappings.contains { $0.lensField == .bodyType } && secondScan.proposedMappings.contains { $0.lensField == .activity }, "Scanner suggests fields without a site-specific adapter")
             let markerGrid = """
             <main><h1>Map</h1><div class='map-layer'>
-              <button class='map-marker' data-profile-id='alpha123' aria-label='Profile marker'></button>
-              <button class='map-marker' data-profile-id='bravo456' aria-label='Profile marker'></button>
+              <button class='map-marker' data-profile-id='alpha123' aria-label='Profile marker, 34, 6&#39;2&quot;, muscular, top'></button>
+              <button class='map-marker' data-profile-id='bravo456' aria-label='Profile marker, 42, 210 lb, bottom'></button>
             </div></main>
             """
             let detailProfile = """
@@ -111,7 +111,7 @@ struct SmokeTestView: View {
             """
             let (gridScan, gridWeb) = try await scanFixture(markerGrid, baseURL: URL(string: "https://fixture.example/map")!)
             let (detailScan, _) = try await scanFixture(detailProfile, baseURL: URL(string: "https://fixture.example/profile/alpha123")!)
-            try require(gridScan.kind == .collection && gridScan.visibleReferenceCount == 2 && gridScan.proposedMappings.isEmpty, "Marker grid reports visible references without inventing filter fields")
+            try require(gridScan.kind == .collection && gridScan.visibleReferenceCount == 2 && gridScan.proposedMappings.isEmpty, "Map scan reports references without treating rich marker labels as profile fields")
             try require(detailScan.kind == .detail && detailScan.profiles.count == 1 && detailScan.profiles[0].id == "profile-alpha123", "Open profile is collected once instead of treating its repeated rows as profiles")
             try require([WizardLensField.age, .height, .weight, .endowment, .bodyType, .position].allSatisfy { field in detailScan.proposedMappings.contains { $0.lensField == field } }, "Open profile derives the expected filter-field proposals")
             let wizardDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
