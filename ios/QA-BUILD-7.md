@@ -3,8 +3,8 @@
 request_id: lens-ios-stage-two-wizard
 revision: 3
 supersedes: revision 2 for build 7 only; preserve build-5 and build-6 findings
-state: pending internal TestFlight upload
-candidate: 0.1.0 (7), Internal only
+state: uploaded; Apple processing and Owner Testing assignment pending
+candidate: 0.1.0 (7), Internal-only upload
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Report the exact build/device, whether the map scan stays on Scan, visible map count, each collected-profile result, and completion of fields, preferences, calibration, correction, and preview. Do not include private profile or account data.
