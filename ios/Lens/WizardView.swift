@@ -393,12 +393,33 @@ private struct FieldMappingEditor: View {
                 ForEach(WizardLensField.allCases) { Text($0.label).tag($0) }
             }
             if let suggestion = mapping.suggestedField { Text("Suggested meaning: \(suggestion.label). Confirm or change it.").font(.footnote).foregroundStyle(.secondary) }
-            Text("Source key: \(mapping.sourceKey)").font(.caption).foregroundStyle(.secondary)
-            ForEach(mapping.evidence, id: \.self) { Text("Evidence: \($0)").font(.caption) }
+            if mapping.lensField == .position || mapping.suggestedField == .position {
+                positionBadgeGuide
+            }
             if !mapping.options.isEmpty {
                 Text("Option mappings").font(.headline)
+                Text("Check what Lens read from the site and edit the value Lens will use for filtering.")
+                    .font(.footnote).foregroundStyle(.secondary)
                 ForEach($mapping.options) { $option in
-                    HStack { Text("\(option.rawValue) (\(option.evidenceCount))"); Text("→"); TextField("Lens value", text: $option.lensValue).textFieldStyle(.roundedBorder) }
+                    VStack(alignment: .leading, spacing: 4) {
+                        if option.evidenceCount > 0 {
+                            Text("Site reported: \(option.rawValue) (\(option.evidenceCount))")
+                                .font(.subheadline)
+                        } else {
+                            Text("Added option: \(option.rawValue)").font(.subheadline)
+                        }
+                        Text("Lens filter value").font(.caption).foregroundStyle(.secondary)
+                        TextField("Lens value", text: $option.lensValue)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("Lens value for \(option.rawValue)")
+                    }
+                }
+            }
+            if !mapping.evidence.isEmpty {
+                DisclosureGroup("What Lens read") {
+                    ForEach(Array(Set(mapping.evidence)).sorted(), id: \.self) { evidence in
+                        Text(evidence).font(.caption)
+                    }
                 }
             }
             DisclosureGroup("Add a missing visible option") {
@@ -413,6 +434,16 @@ private struct FieldMappingEditor: View {
                 }.disabled(addedRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || addedLens.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }.padding().background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var positionBadgeGuide: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("What the map badges may mean").font(.subheadline.bold())
+            Text("🍆 Eggplant → Top")
+            Text("🍑 Peach → Bottom")
+            Text("These are examples. The site may display a badge while giving Lens a word like “top” or “bottom.” Check that the badge and the suggested value match. You can change a value or turn off Position if you can’t verify it.")
+                .foregroundStyle(.secondary)
+        }.font(.footnote)
     }
 }
 
