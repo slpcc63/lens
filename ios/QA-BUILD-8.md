@@ -3,8 +3,8 @@
 request_id: lens-ios-stage-two-wizard
 revision: 4
 supersedes: revision 3 for build 8 only; preserve earlier findings
-state: pending TestFlight availability
-candidate: 0.1.0 (8), internal TestFlight
+state: uploaded; Apple processing and Owner Testing availability pending verification
+candidate: 0.1.0 (8), internal TestFlight, source da8f8cb
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Report the exact build, device, whether the Position guide made the map badges recognizable, and the first step that failed. Omit private profile and account information.
