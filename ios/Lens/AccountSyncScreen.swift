@@ -71,8 +71,8 @@ struct AccountSyncScreen: View {
     init(accountDataStore: WKWebsiteDataStore?, recipeMode: Bool = false) {
         self.accountDataStore = accountDataStore ?? WKWebsiteDataStore(forIdentifier: UUID(uuidString: "C7A7E916-15F5-41B0-98B3-AFF88FB9C916")!)
         // This internal beta uses only the exact tested preview deployment.
-        if recipeMode, let recipeEndpoint = SharedSiteRecipe.endpoint {
-            endpoint = recipeEndpoint.deletingLastPathComponent()
+        if recipeMode {
+            endpoint = SharedSiteRecipe.accountEndpoint
         } else if !recipeMode, let raw = Bundle.main.object(forInfoDictionaryKey: "LensAccountSyncURL") as? String,
            let url = URL(string: raw), url.scheme == "https", url.host == "hosted-saas-b3im5yh15-slpcc63-8889s-projects.vercel.app",
            url.path == "/api/lens", url.query == nil, url.fragment == nil, url.port == nil,
@@ -149,8 +149,7 @@ struct AccountSyncScreen: View {
     }
     func shareRecipe(_ recipe: SharedSiteRecipe) {
         guard !sendingRecipe, recipe.valid, let web, let endpoint,
-              let recipeEndpoint = SharedSiteRecipe.endpoint,
-              recipeEndpoint.deletingLastPathComponent() == endpoint,
+              SharedSiteRecipe.accountEndpoint == endpoint,
               web.url == endpoint else {
             message = "Sign in to Doxle, then tap Send site recipe."
             return

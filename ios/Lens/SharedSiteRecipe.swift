@@ -50,6 +50,12 @@ struct SharedSiteRecipe: Codable, Equatable, Identifiable {
         return url
     }
 
+    static var accountEndpoint: URL? {
+        guard let endpoint, var parts = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else { return nil }
+        parts.path = "/api/lens"
+        return parts.url
+    }
+
     static func download() async -> Self? {
         guard let endpoint, var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else { return nil }
         components.queryItems = [URLQueryItem(name: "site", value: "sniffies")]

@@ -4,5 +4,7 @@
 <dict>
 	<key>LensAccountSyncURL</key>
 	<string>https://hosted-saas-b3im5yh15-slpcc63-8889s-projects.vercel.app/api/lens</string>
+	<key>LensRecipePilotURL</key>
+	<string>https://hosted-saas-9dw20xspo-slpcc63-8889s-projects.vercel.app/api/lens/recipes</string>
 </dict>
 </plist>
