@@ -2,7 +2,7 @@
 
 request_id: lens-ios-stage-two-wizard
 revision: 5
-state: candidate; do not begin owner QA until Owner Testing availability is verified
+state: uploaded to internal TestFlight; Apple processing and Owner Testing availability pending verification
 candidate: 0.1.0 (9), source 1abdad7
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
