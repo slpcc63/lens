@@ -61,7 +61,7 @@ extension BrowserModel {
         const value = clean(row.children[1].innerText || row.children[1].getAttribute('aria-label'));
         if (label.length <= 45) add(label, value, label);
       }
-      const accessible = [...root.querySelectorAll('[aria-label], img[alt], [title]')].slice(0, 120)
+      const accessible = [root, ...root.querySelectorAll('[aria-label], img[alt], [title]')].slice(0, 120)
         .map(node => clean(node.getAttribute('aria-label') || node.getAttribute('alt') || node.getAttribute('title'))).filter(Boolean);
       const text = clean(String(root.innerText || '') + ' ' + accessible.join(' '));
       const symbols = [...new Set(text.match(/[🍆🍑]/gu) || [])];
