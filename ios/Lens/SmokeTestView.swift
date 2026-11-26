@@ -100,8 +100,8 @@ struct SmokeTestView: View {
             try require(secondScan.proposedMappings.contains { $0.lensField == .bodyType } && secondScan.proposedMappings.contains { $0.lensField == .activity }, "Scanner suggests fields without a site-specific adapter")
             let markerGrid = """
             <main><h1>Map</h1><div class='map-layer'>
-              <button class='map-marker' data-profile-id='alpha123' aria-label='Profile marker, 34, 6&#39;2&quot;, muscular, top'></button>
-              <button class='map-marker' data-profile-id='bravo456' aria-label='Profile marker, 42, 210 lb, bottom'></button>
+              <a class='map-marker' style='display:inline-block;width:32px;height:32px' data-profile-id='alpha123' href='/profile/alpha123?token=fixture' aria-label='Profile marker, 34, 6&#39;2&quot;, muscular, top'></a>
+              <a class='map-marker' style='display:inline-block;width:32px;height:32px' data-profile-id='bravo456' href='https://other.example/profile/bravo456' aria-label='Profile marker, 42, 210 lb, bottom'></a>
             </div></main>
             """
             let detailProfile = """
@@ -112,12 +112,20 @@ struct SmokeTestView: View {
             let (gridScan, gridWeb) = try await scanFixture(markerGrid, baseURL: URL(string: "https://fixture.example/map")!)
             let (detailScan, _) = try await scanFixture(detailProfile, baseURL: URL(string: "https://fixture.example/profile/alpha123")!)
             try require(gridScan.kind == .collection && gridScan.visibleReferenceCount == 2 && gridScan.proposedMappings.isEmpty, "Map scan reports references without treating rich marker labels as profile fields")
+            try require(gridScan.mapObservations?.first?.fields.contains { $0.key == "position" } == true, "Readable map fields are reported separately from collected profile fields")
+            try require(gridScan.profileLinks?.map(\.absoluteString) == ["https://fixture.example/profile/alpha123"], "Automatic profile navigation uses explicit same-site profile links without query data")
             try require(detailScan.kind == .detail && detailScan.profiles.count == 1 && detailScan.profiles[0].id == "profile-alpha123", "Open profile is collected once instead of treating its repeated rows as profiles")
             try require([WizardLensField.age, .height, .weight, .endowment, .bodyType, .position].allSatisfy { field in detailScan.proposedMappings.contains { $0.lensField == field } }, "Open profile derives the expected filter-field proposals")
             let wizardDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             defer { try? FileManager.default.removeItem(at: wizardDirectory) }
             let wizardStore = WizardStore(directory: wizardDirectory), wizardSiteID = UUID()
             var wizardConfiguration = WizardConfiguration(siteID: wizardSiteID, mappings: firstScan.proposedMappings, collectedProfiles: detailScan.profiles)
+            let height = WizardProfileSample.Field(key: "height", label: "Height", value: "5'2″", source: "Height")
+            let mismatch = WizardProfileSample.Field(key: "height", label: "Height", value: "🍑", source: "Height")
+            let positionMismatch = WizardProfileSample.Field(key: "position", label: "Position", value: "47", source: "Position")
+            try require(GuidedFilterSetup.usableField(height) == .height && GuidedFilterSetup.usableField(mismatch) == nil && GuidedFilterSetup.usableField(positionMismatch) == nil, "Only mismatched values require a field check")
+            let cm = GuidedPreferencesView.convert(WizardFilter(field: .height, minimum: 62, unit: "ft / in"), to: "cm")
+            try require(abs((cm.minimum ?? 0) - 157.48) < 0.001, "Changing display units preserves the actual preference")
             wizardConfiguration.mappings[0].state = .confirmed
             wizardConfiguration.previewMode = .dim
             try wizardStore.save(wizardConfiguration)

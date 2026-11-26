@@ -11,9 +11,11 @@ extension BrowserModel {
     }
 
     func setWizardPreview(_ evaluations: [WizardEvaluation], mode: WizardPreviewMode) async throws {
-        let reasons = Dictionary(uniqueKeysWithValues: evaluations.filter { $0.outcome == .blocked }.map {
-            ($0.profile.id, $0.reasons.joined(separator: " "))
-        })
+        let grouped = Dictionary(grouping: evaluations, by: { $0.profile.id })
+        let reasons = grouped.compactMapValues { group -> String? in
+            guard group.count == 1, let evaluation = group.first, evaluation.outcome == .blocked else { return nil }
+            return evaluation.reasons.joined(separator: " ")
+        }
         _ = try await webView.callAsyncJavaScript(Self.wizardPreviewScript,
             arguments: ["mode": mode.rawValue, "reasons": reasons], in: nil, contentWorld: .page)
     }
@@ -118,13 +120,30 @@ extension BrowserModel {
       .sort((a,b) => b.length - a.length || readable(b[0]).length - readable(a[0]).length)[0] || [];
     cards = cards.slice(0, 80);
     let profiles = cards.map((card, index) => {
-      const id = identityFor(card) || `scan-${index + 1}`;
+      const explicitID = token(card.getAttribute('data-profile-id') || card.getAttribute('data-user-id'));
+      const id = explicitID ? 'profile-' + explicitID : identityFor(card) || `scan-${index + 1}`;
       card.setAttribute('data-lens-profile-id', id);
-      return {id, title: `Visible grid entry ${index + 1}`, fields: fieldsFor(card)};
+      return {id, title: `Visible grid entry ${index + 1}`, fields: fieldsFor(card), reliableID: Boolean(explicitID)};
     });
     const pageTitle = clean(document.title) || clean(document.querySelector('h1')?.innerText) || location.hostname;
     const limitations = ['Only the currently visible and loaded page sample was scanned.', 'Images, canvas content and cross-origin frames were not inspected.'];
     const pathID = token(location.pathname);
+    const profilePath = /^\/(?:profile|profiles|user|users|member|members)\/[a-z0-9_-]+\/?$/i;
+    const profileLinks = [...new Set(cards.flatMap(card => [card, ...card.querySelectorAll('a[href]')].slice(0,12).flatMap(anchor => {
+      if (!anchor.matches('a[href]')) return [];
+      try {
+        const link = new URL(anchor.getAttribute('href'), location.href);
+        return link.origin === expectedOrigin && !link.username && !link.password &&
+          profilePath.test(link.pathname) ? [link.origin + link.pathname.replace(/\/$/, '')] : [];
+      } catch { return []; }
+    })))];
+    const detailSample = detail => {
+      const explicitID = token(detail.element.getAttribute('data-profile-id') || detail.element.getAttribute('data-user-id'));
+      const routeID = profilePath.test(location.pathname) ? pathID : '';
+      const id = 'profile-' + (explicitID || routeID || 'current');
+      detail.element.setAttribute('data-lens-profile-id', id);
+      return {id, title: 'Open profile', fields: detail.fields, reliableID: Boolean(explicitID || routeID)};
+    };
     const collectionRoute = /^(|map|grid|browse|explore|search|home|nearby|profiles|members)$/i.test(pathID);
     const mapContext = /^(map|nearby)$/i.test(pathID) || Boolean(document.querySelector(
       '[role="application"][aria-label*="map" i], [class*="map" i] canvas, [class*="map" i] [class*="marker" i], [data-testid*="map" i]'));
@@ -135,32 +154,31 @@ extension BrowserModel {
     const strongDetail = detailCandidates.find(item => item.element.matches('dialog,[role="dialog"],[aria-modal="true"]')) ||
       (!collectionRoute ? detailCandidates[0] : null);
     if (strongDetail) {
-      const detail = strongDetail, id = identityFor(detail.element) || 'profile-' + (pathID || 'current');
-      detail.element.setAttribute('data-lens-profile-id', id);
-      profiles = [{id, title: 'Open profile', fields: detail.fields}];
+      const detail = strongDetail;
+      profiles = [detailSample(detail)];
       return JSON.stringify({origin: location.origin, pageTitle, profiles, limitations, kind: 'detail', visibleReferenceCount: 1,
         sampleDescription: `Collected one open profile with ${detail.fields.length} readable fields on ${pageTitle} at ${location.origin}.`});
     }
     if (mapContext && profiles.length) {
+      const mapObservations = profiles;
       profiles = profiles.map(profile => ({...profile, fields: []}));
       limitations.unshift('The map was treated as a reference view. Open profiles are required before setting preferences.');
-      return JSON.stringify({origin: location.origin, pageTitle, profiles, limitations, kind: 'collection', visibleReferenceCount: profiles.length,
+      return JSON.stringify({origin: location.origin, pageTitle, profiles, mapObservations, profileLinks, limitations, kind: 'collection', visibleReferenceCount: profiles.length,
         sampleDescription: `Found ${profiles.length} visible map entries without using marker text as profile fields on ${pageTitle}.`});
     }
     if (profiles.some(profile => profile.fields.length)) {
-      return JSON.stringify({origin: location.origin, pageTitle, profiles, limitations, kind: 'collection', visibleReferenceCount: profiles.length,
+      return JSON.stringify({origin: location.origin, pageTitle, profiles, profileLinks, limitations, kind: 'collection', visibleReferenceCount: profiles.length,
         sampleDescription: `Scanned ${profiles.length} visible loaded profile ${profiles.length === 1 ? 'card' : 'cards'} on ${pageTitle} at ${location.origin}.`});
     }
     if (detailCandidates.length) {
-      const detail = detailCandidates[0], id = identityFor(detail.element) || 'profile-' + (pathID || 'current');
-      detail.element.setAttribute('data-lens-profile-id', id);
-      profiles = [{id, title: 'Open profile', fields: detail.fields}];
+      const detail = detailCandidates[0];
+      profiles = [detailSample(detail)];
       return JSON.stringify({origin: location.origin, pageTitle, profiles, limitations, kind: 'detail', visibleReferenceCount: 1,
         sampleDescription: `Collected one open profile with ${detail.fields.length} readable fields on ${pageTitle} at ${location.origin}.`});
     }
     if (profiles.length) limitations.unshift('Grid entries were visible, but their filter fields were not exposed on the grid.');
     else limitations.unshift('No readable profile grid or open profile was detected on this page.');
-    return JSON.stringify({origin: location.origin, pageTitle, profiles, limitations, kind: profiles.length ? 'collection' : 'none', visibleReferenceCount: profiles.length,
+    return JSON.stringify({origin: location.origin, pageTitle, profiles, profileLinks, limitations, kind: profiles.length ? 'collection' : 'none', visibleReferenceCount: profiles.length,
       sampleDescription: profiles.length ? `Found ${profiles.length} visible grid entries without readable filter fields on ${pageTitle}.` : `No readable profiles were found on ${pageTitle}.`});
     """#
 

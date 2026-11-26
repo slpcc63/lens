@@ -30,6 +30,7 @@ struct HomeView: View {
     @State private var removing: SavedSite?
     @State private var editing: SavedSite?
     @State private var account = false
+    @State private var filterDefaults = false
     @Environment(\.scenePhase) private var scenePhase
     var body: some View {
         NavigationStack {
@@ -70,10 +71,16 @@ struct HomeView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }.padding(20)
             }.background(Family.canvas).navigationTitle("Lens")
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { account = true } label: { Label("Doxle account", systemImage: "person.crop.circle") } } }
+                .toolbar {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button { filterDefaults = true } label: { Label("Lens settings", systemImage: "gearshape") }
+                        Button { account = true } label: { Label("Doxle account", systemImage: "person.crop.circle") }
+                    }
+                }
                 .sheet(isPresented: $adding) { AddSiteView(store: store) }
                 .sheet(item: $editing) { SiteSettingsView(site: $0, store: store) }
                 .sheet(isPresented: $account) { AccountSyncScreen(store: store) }
+                .sheet(isPresented: $filterDefaults) { FilterDefaultsView() }
                 .task { store.importSharedSites() }
                 .onChange(of: scenePhase) { _, phase in if phase == .active { store.importSharedSites() } }
                 .confirmationDialog("Remove this shortcut? Website sessions will remain.", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
@@ -114,14 +121,37 @@ struct AddSiteView: View {
 struct BrowserScreen: View {
     let initialSite: SavedSite
     @ObservedObject var store: SiteStore
+    @StateObject private var filterSetup: GuidedFilterSetup
+
+    init(initialSite: SavedSite, store: SiteStore) {
+        self.initialSite = initialSite
+        self.store = store
+        _filterSetup = StateObject(wrappedValue: GuidedFilterSetup(
+            site: initialSite, browser: BrowserModel(url: initialSite.url)))
+    }
+
+    var body: some View {
+        BrowserContent(initialSite: initialSite, store: store, filterSetup: filterSetup)
+    }
+}
+
+private struct BrowserContent: View {
+    let initialSite: SavedSite
+    @ObservedObject var store: SiteStore
     @Environment(\.dismiss) private var dismiss
     @State private var settings = false
     private var site: SavedSite { store.sites.first { $0.id == initialSite.id } ?? initialSite }
-    @StateObject private var browser: BrowserModel
+    @ObservedObject private var browser: BrowserModel
+    @ObservedObject private var filterSetup: GuidedFilterSetup
     @State private var editingAddress = false
     @State private var destination = ""
-    @State private var wizard = false
-    init(initialSite: SavedSite, store: SiteStore) { self.initialSite = initialSite; self.store = store; _browser = StateObject(wrappedValue: BrowserModel(url: initialSite.url)) }
+    @State private var filterIntroduction = false
+    init(initialSite: SavedSite, store: SiteStore, filterSetup: GuidedFilterSetup) {
+        self.initialSite = initialSite
+        self.store = store
+        self.filterSetup = filterSetup
+        browser = filterSetup.browser
+    }
     var body: some View {
         VStack(spacing: 0) {
             Button { destination = browser.address; editingAddress = true } label: {
@@ -135,11 +165,32 @@ struct BrowserScreen: View {
                 VStack { Text(notice).font(.callout); Button("Dismiss message") { browser.notice = nil } }.padding()
             }
             WebPage(browser: browser)
+            GuidedFilterPanel(setup: filterSetup, browser: browser)
         }.navigationTitle(site.name).navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .onChange(of: site.url) { _, url in browser.navigate(url.absoluteString) }
-            .sheet(isPresented: $settings) { SiteSettingsView(site: site, store: store) }
-            .fullScreenCover(isPresented: $wizard) { WizardView(site: site, browser: browser) }
+            .onChange(of: browser.loading) { _, loading in
+                if !loading && filterSetup.stage == .preview {
+                    Task { await filterSetup.refreshPreview() }
+                }
+            }
+            .sheet(isPresented: $settings) {
+                SiteSettingsView(site: site, store: store, resetFiltering: filterSetup.resetFiltering)
+            }
+            .sheet(isPresented: $filterSetup.preferencesPresented) { GuidedPreferencesView(setup: filterSetup) }
+            .task {
+                let key = "lens.filterIntroduction.\(site.id.uuidString)"
+                if !filterSetup.completed && !UserDefaults.standard.bool(forKey: key) {
+                    filterIntroduction = true
+                }
+            }
+            .alert("Set up Lens filters", isPresented: $filterIntroduction) {
+                Button("Continue to \(site.name)") {
+                    UserDefaults.standard.set(true, forKey: "lens.filterIntroduction.\(site.id.uuidString)")
+                }
+            } message: {
+                Text("Sign in on the website. If you want to set up filtering, open the map or profile list, then tap Lens filters at the bottom right.")
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: { HStack { Image(systemName: "square.grid.2x2"); Text("Sites") } }.tint(Family.siteReturn).accessibilityLabel("Return to saved sites")
@@ -153,8 +204,16 @@ struct BrowserScreen: View {
                     Spacer()
                     Button { browser.error = nil; browser.webView.reload() } label: { FamilyIcon(name: "refresh").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel("Reload website")
                     Spacer()
-                    Button { wizard = true } label: { Image(systemName: "line.3.horizontal.decrease.circle").frame(minWidth: 44, minHeight: 44) }
-                        .accessibilityLabel("Set up profile filtering")
+                    Button {
+                        switch filterSetup.stage {
+                        case .closed: filterSetup.stage = .menu
+                        case .menu: filterSetup.stage = .closed
+                        default: break
+                        }
+                    } label: {
+                        Label("Lens filters", systemImage: "line.3.horizontal.decrease.circle")
+                            .labelStyle(.titleAndIcon).font(.footnote.weight(.semibold)).frame(minHeight: 44)
+                    }.accessibilityIdentifier("lensFilters")
                 }
             }
             .alert("Go to website", isPresented: $editingAddress) {

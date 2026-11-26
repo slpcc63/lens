@@ -97,6 +97,7 @@ struct WizardConfiguration: Codable, Equatable {
     // use generic titles, and are protected with the rest of the wizard file.
     var collectedProfiles: [WizardProfileSample]?
     var lastScanDescription: String?
+    var completedSiteScan: Bool?
     var updatedAt = Date()
 }
 
@@ -110,6 +111,7 @@ struct WizardProfileSample: Codable, Hashable, Identifiable {
     var id: String
     var title: String
     var fields: [Field]
+    var reliableID: Bool?
 }
 
 struct WizardScanResult: Codable, Equatable {
@@ -121,6 +123,8 @@ struct WizardScanResult: Codable, Equatable {
     var limitations: [String]
     var kind: WizardScanKind
     var visibleReferenceCount: Int
+    var mapObservations: [WizardProfileSample]?
+    var profileLinks: [URL]?
 }
 
 enum WizardOutcome: String { case match, blocked, unknown }
@@ -140,6 +144,8 @@ enum WizardDetector {
         var limitations: [String]
         var kind: WizardScanKind
         var visibleReferenceCount: Int
+        var mapObservations: [WizardProfileSample]?
+        var profileLinks: [URL]?
     }
 
     static func decode(_ json: String) throws -> WizardScanResult {
@@ -148,7 +154,8 @@ enum WizardDetector {
         return WizardScanResult(origin: payload.origin, pageTitle: payload.pageTitle,
                                 sampleDescription: payload.sampleDescription, profiles: payload.profiles,
                                 proposedMappings: mappings, limitations: payload.limitations,
-                                kind: payload.kind, visibleReferenceCount: payload.visibleReferenceCount)
+                                kind: payload.kind, visibleReferenceCount: payload.visibleReferenceCount,
+                                mapObservations: payload.mapObservations, profileLinks: payload.profileLinks)
     }
 
     static func mappings(for profiles: [WizardProfileSample]) -> [WizardFieldMapping] {
