@@ -178,6 +178,9 @@ private struct BrowserContent: View {
                 SiteSettingsView(site: site, store: store, resetFiltering: filterSetup.resetFiltering)
             }
             .sheet(isPresented: $filterSetup.preferencesPresented) { GuidedPreferencesView(setup: filterSetup) }
+            .sheet(item: $filterSetup.recipeToShare) { recipe in
+                AccountSyncScreen(store: store, recipe: recipe)
+            }
             .task {
                 let key = "lens.filterIntroduction.\(site.id.uuidString)"
                 if !filterSetup.completed && !UserDefaults.standard.bool(forKey: key) {

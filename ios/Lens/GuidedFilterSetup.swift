@@ -58,6 +58,8 @@ struct FilterDefaultsView: View {
     @Published private(set) var additionalFieldScan = false
     @Published private(set) var showEveryone = false
     @Published var preferencesPresented = false
+    @Published private(set) var recipeOffer: SharedSiteRecipe?
+    @Published var recipeToShare: SharedSiteRecipe?
 
     let browser: BrowserModel
     private let store = WizardStore()
@@ -94,6 +96,8 @@ struct FilterDefaultsView: View {
         if !additional { draft = nil }
         additionalFieldScan = additional
         count = nil
+        recipeOffer = nil
+        recipeToShare = nil
         mapFields = []
         readableMapEntries = []
         samples = []
@@ -141,6 +145,11 @@ struct FilterDefaultsView: View {
                 return usable
             }
             mapFields = Set(readableMapEntries.flatMap(\.fields).compactMap { Self.usableField($0)?.label }).sorted()
+            if !completed, SharedSiteRecipe.supports(origin: result.origin),
+               let shared = await SharedSiteRecipe.download(), browser.origin == result.origin {
+                let local = verifiedRecipeMapFields
+                if !shared.mapKeys.isEmpty, shared.mapKeys.isSubset(of: local) { recipeOffer = shared }
+            }
         } catch { notice = error.localizedDescription }
     }
 
@@ -265,6 +274,47 @@ struct FilterDefaultsView: View {
             }
             stage = .menu
             if additionalFieldScan { preferencesPresented = true }
+            else if SharedSiteRecipe.endpoint != nil, SharedSiteRecipe.supports(origin: scanOrigin) {
+                let profileKeys = Set(acceptedFields.compactMap { key, field in
+                    SharedSiteRecipe.supportedFields[key] == field ? key : nil
+                })
+                recipeOffer = SharedSiteRecipe.make(map: verifiedRecipeMapFields, profiles: profileKeys)
+            }
+        } catch { notice = error.localizedDescription }
+    }
+
+    private var verifiedRecipeMapFields: Set<String> {
+        Set(readableMapEntries.flatMap(\.fields).compactMap { observation in
+            guard let supported = SharedSiteRecipe.supportedFields[observation.key],
+                  Self.usableField(observation) == supported else { return nil }
+            return observation.key
+        })
+    }
+
+    func useSharedRecipe() {
+        guard !busy, storeReadable, stage == .map, let recipe = recipeOffer,
+              !recipe.mapKeys.isEmpty, recipe.mapKeys.isSubset(of: verifiedRecipeMapFields),
+              SharedSiteRecipe.supports(origin: browser.origin), scanOrigin == browser.origin,
+              browser.webView.url == mapAddress else { return }
+        var next = configuration
+        let proposals = WizardDetector.mappings(for: readableMapEntries)
+        for var mapping in proposals where recipe.mapKeys.contains(mapping.sourceKey) {
+            guard let meaning = SharedSiteRecipe.supportedFields[mapping.sourceKey] else { continue }
+            mapping.lensField = meaning
+            mapping.state = .confirmed
+            if !next.mappings.contains(where: { $0.sourceKey == mapping.sourceKey }) { next.mappings.append(mapping) }
+            if !next.filters.contains(where: { $0.field == meaning }) {
+                next.filters.append(WizardFilter(field: meaning, unit: meaning.defaultUnit))
+            }
+        }
+        next.completedSiteScan = true
+        next.lastScanDescription = "Shared recipe checked against your map"
+        do {
+            try store.save(next)
+            configuration = next
+            recipeOffer = nil
+            stage = .menu
+            notice = "Shared recipe checked. Filters available on your map are ready."
         } catch { notice = error.localizedDescription }
     }
 
@@ -499,6 +549,9 @@ struct GuidedFilterPanel: View {
             Button("Set preferences") { setup.editPreferences() }
                 .buttonStyle(.bordered).disabled(!setup.completed)
             if !setup.completed { Text("Scan this site first.").font(.footnote).foregroundStyle(.secondary) }
+            if setup.completed, let recipe = setup.recipeOffer {
+                Button("Review and share site recipe") { setup.recipeToShare = recipe }.buttonStyle(.bordered)
+            }
         }
     }
 
@@ -511,8 +564,12 @@ struct GuidedFilterPanel: View {
                 if !setup.mapFields.isEmpty {
                     Text("Lens found on the map: \(setup.mapFields.joined(separator: ", ")).").font(.footnote)
                 }
+                if setup.recipeOffer != nil {
+                    Text("Lens checked a shared recipe against this map.").font(.footnote)
+                    Button("Use shared recipe") { setup.useSharedRecipe() }.buttonStyle(.borderedProminent)
+                }
                 Text(setup.hasAutomaticNext ? "Tap Next to open a sample profile." : "Tap a profile on the map to open it, then tap Next.")
-                Button("Next") { setup.nextProfile() }.buttonStyle(.borderedProminent).disabled(browser.loading)
+                Button("Next") { setup.nextProfile() }.buttonStyle(.borderedProminent).disabled(browser.loading || setup.busy)
             } else {
                 Text("Open the website map so you can see profile markers.")
                 Button("Scan map") { Task { await setup.scanMap() } }

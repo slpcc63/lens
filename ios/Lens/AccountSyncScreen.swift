@@ -9,14 +9,31 @@ struct SiteSnapshot: Codable {
 struct AccountSyncScreen: View {
     @ObservedObject var store: SiteStore
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var model = AccountSyncModel()
+    @StateObject private var model: AccountSyncModel
+    private let recipe: SharedSiteRecipe?
+
+    init(store: SiteStore, recipe: SharedSiteRecipe? = nil) {
+        self.store = store
+        self.recipe = recipe
+        _model = StateObject(wrappedValue: AccountSyncModel(accountDataStore: nil, recipeMode: recipe != nil))
+    }
     var body: some View {
         NavigationStack {
             Group {
                 if model.configured {
                     VStack(spacing: 0) {
-                        Text("Preview account sync · Separate test account settings")
-                            .font(.footnote).padding(8).frame(maxWidth: .infinity).background(.regularMaterial)
+                        if let recipe {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Share how Lens reads Sniffies").font(.headline)
+                                Text("Sign in to Doxle to count one contribution. Lens will send only the field names below and where it found them. Your profile samples and preferences stay on this device.").font(.footnote)
+                                Text(recipe.summary).font(.footnote)
+                                Button("Send site recipe") { model.shareRecipe(recipe) }
+                                    .buttonStyle(.borderedProminent).disabled(model.sendingRecipe)
+                            }.padding().frame(maxWidth: .infinity, alignment: .leading).background(.regularMaterial)
+                        } else {
+                            Text("Preview account sync · Separate test account settings")
+                                .font(.footnote).padding(8).frame(maxWidth: .infinity).background(.regularMaterial)
+                        }
                         AccountPortal(model: model, store: store)
                     }
                 } else {
@@ -24,7 +41,7 @@ struct AccountSyncScreen: View {
                 }
             }.safeAreaInset(edge: .bottom) {
                 if let message = model.message { Text(message).font(.callout).padding().frame(maxWidth: .infinity).background(.regularMaterial) }
-            }.navigationTitle("Doxle account").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle(recipe == nil ? "Doxle account" : "Share site recipe").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
                 .confirmationDialog("Replace sites on this device with the account copy? A local backup will be kept.", isPresented: $model.confirmDownload, titleVisibility: .visible) {
                     Button("Use account settings") { model.applyDownload(to: store) }
@@ -40,6 +57,7 @@ struct AccountSyncScreen: View {
     @Published var message: String?
     @Published var confirmDownload = false
     @Published var confirmUpload = false
+    @Published private(set) var sendingRecipe = false
     private(set) var pendingDownload: SiteSnapshot?
     private var pendingGeneration: UUID?
     private var uploadAccount: String?
@@ -50,10 +68,12 @@ struct AccountSyncScreen: View {
     private(set) var web: WKWebView?
     var configured: Bool { endpoint != nil }
     override convenience init() { self.init(accountDataStore: nil) }
-    init(accountDataStore: WKWebsiteDataStore?) {
+    init(accountDataStore: WKWebsiteDataStore?, recipeMode: Bool = false) {
         self.accountDataStore = accountDataStore ?? WKWebsiteDataStore(forIdentifier: UUID(uuidString: "C7A7E916-15F5-41B0-98B3-AFF88FB9C916")!)
         // This internal beta uses only the exact tested preview deployment.
-        if let raw = Bundle.main.object(forInfoDictionaryKey: "LensAccountSyncURL") as? String,
+        if recipeMode, let recipeEndpoint = SharedSiteRecipe.endpoint {
+            endpoint = recipeEndpoint.deletingLastPathComponent()
+        } else if !recipeMode, let raw = Bundle.main.object(forInfoDictionaryKey: "LensAccountSyncURL") as? String,
            let url = URL(string: raw), url.scheme == "https", url.host == "hosted-saas-b3im5yh15-slpcc63-8889s-projects.vercel.app",
            url.path == "/api/lens", url.query == nil, url.fragment == nil, url.port == nil,
            url.user == nil, url.password == nil { endpoint = url } else { endpoint = nil }
@@ -126,6 +146,39 @@ struct AccountSyncScreen: View {
             }
             message = nil
         } catch { message = error.localizedDescription }
+    }
+    func shareRecipe(_ recipe: SharedSiteRecipe) {
+        guard !sendingRecipe, recipe.valid, let web, let endpoint,
+              let recipeEndpoint = SharedSiteRecipe.endpoint,
+              recipeEndpoint.deletingLastPathComponent() == endpoint,
+              web.url == endpoint else {
+            message = "Sign in to Doxle, then tap Send site recipe."
+            return
+        }
+        sendingRecipe = true
+        message = nil
+        Task {
+            defer { sendingRecipe = false }
+            do {
+                let result = try await web.callAsyncJavaScript(
+                    """
+                    if (location.origin !== expectedOrigin || location.pathname !== expectedPath) return 401;
+                    const response = await fetch('/api/lens/recipes', {
+                      method:'POST', redirect:'error', cache:'no-store',
+                      headers:{'Content-Type':'application/json'}, body:JSON.stringify(recipe)
+                    });
+                    return response.status;
+                    """,
+                    arguments: ["expectedOrigin": "https://" + (endpoint.host ?? ""), "expectedPath": endpoint.path,
+                                "recipe": ["site": recipe.site, "version": recipe.version, "fields": recipe.fields]],
+                    in: nil, contentWorld: .defaultClient)
+                switch result as? Int {
+                case 200: message = "Site recipe shared. Each verified Doxle account counts once."
+                case 401, 403: message = "Sign in with a verified Doxle account, then try again."
+                default: message = "Recipe sharing is unavailable. Your filters still work on this device."
+                }
+            } catch { message = "Recipe sharing is unavailable. Your filters still work on this device." }
+        }
     }
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         decisionHandler(action.request.url?.scheme == "https" ? .allow : .cancel)

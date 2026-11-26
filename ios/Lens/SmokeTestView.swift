@@ -121,6 +121,14 @@ struct SmokeTestView: View {
             let wizardStore = WizardStore(directory: wizardDirectory), wizardSiteID = UUID()
             var wizardConfiguration = WizardConfiguration(siteID: wizardSiteID, mappings: firstScan.proposedMappings, collectedProfiles: detailScan.profiles)
             let height = WizardProfileSample.Field(key: "height", label: "Height", value: "5'2″", source: "Height")
+            let sharedRecipe = SharedSiteRecipe.make(map: ["age"], profiles: ["height"])
+            let encodedRecipe = try JSONEncoder().encode(sharedRecipe)
+            let recipeObject = try JSONSerialization.jsonObject(with: encodedRecipe) as? [String: Any]
+            try require(Set(recipeObject?.keys.map { $0 } ?? []) == ["site", "version", "fields"] &&
+                        recipeObject?["fields"] as? [String] == ["map:age", "profile:height"] &&
+                        SharedSiteRecipe.make(map: ["age:34"], profiles: []) == nil &&
+                        !SharedSiteRecipe.supports(origin: "https://sniffies.com.example.test"),
+                        "The Sniffies pilot sends only known field tags to a first-party service")
             let mismatch = WizardProfileSample.Field(key: "height", label: "Height", value: "🍑", source: "Height")
             let positionMismatch = WizardProfileSample.Field(key: "position", label: "Position", value: "47", source: "Position")
             try require(GuidedFilterSetup.usableField(height) == .height && GuidedFilterSetup.usableField(mismatch) == nil && GuidedFilterSetup.usableField(positionMismatch) == nil, "Only mismatched values require a field check")
