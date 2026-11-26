@@ -3,7 +3,7 @@
 request_id: lens-sniffies-recipe-pilot
 revision: 1
 candidate: Lens 0.1.0 (10), internal preview only
-state: app candidate; wait for Owner Testing availability and two verified preview accounts
+state: uploaded to internal TestFlight; Apple processing, Owner Testing availability, and second verified preview account pending
 report_back_to: Sniffies / Lens distribution and iPhone app chat
 report_back_url: codex://threads/01a1c972-14de-7132-ad54-1b614a52380e
 report_back_instructions: Report the build, whether both contributions matched, the first point at which the recipe appeared, and whether the map check succeeded. Do not share usernames, passwords, private screenshots or profile values.
